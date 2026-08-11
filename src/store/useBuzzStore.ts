@@ -41,6 +41,21 @@ import {
   INITIAL_FBR_CONFIG,
   INITIAL_PAYFAST_CONFIG
 } from '../data/mockInitialData';
+import {
+  saveOrderToSupabase,
+  saveProductToSupabase,
+  deleteProductFromSupabase,
+  saveWaiterToSupabase,
+  saveRiderToSupabase,
+  saveInventoryToSupabase,
+  deleteInventoryFromSupabase,
+  saveExpenseToSupabase,
+  saveCouponToSupabase,
+  deleteCouponFromSupabase,
+  saveDealToSupabase,
+  deleteDealFromSupabase,
+  saveSettingsToSupabase
+} from '../services/supabaseSync';
 
 interface BuzzState {
   // Data entities
@@ -266,6 +281,7 @@ export const useBuzzStore = create<BuzzState>()(
           id: `prod-${Date.now()}`
         };
         set({ products: [newProduct, ...get().products] });
+        saveProductToSupabase(newProduct);
         get().showToast(`Product "${prod.name}" created!`);
       },
 
@@ -273,11 +289,14 @@ export const useBuzzStore = create<BuzzState>()(
         set({
           products: get().products.map((p: Product) => (p.id === id ? { ...p, ...updatedFields } : p))
         });
+        const updated = get().products.find((p: Product) => p.id === id);
+        if (updated) saveProductToSupabase(updated);
         get().showToast('Product updated successfully!');
       },
 
       deleteProduct: (id: string) => {
         set({ products: get().products.filter((p: Product) => p.id !== id) });
+        deleteProductFromSupabase(id);
         get().showToast('Product deleted', 'info');
       },
 
@@ -385,12 +404,15 @@ export const useBuzzStore = create<BuzzState>()(
           appliedCoupon: null
         });
 
+        saveOrderToSupabase(newOrder);
         get().showToast(`Order ${orderNumber} created successfully!`);
         return newOrder;
       },
 
       updateOrderStatus: (id: string, status: OrderStatus, riderId?: string, waiterId?: string) => {
         const now = new Date().toISOString();
+        let targetOrder: Order | undefined;
+
         const updatedOrders = get().orders.map((ord: Order) => {
           if (ord.id === id) {
             const riderObj = riderId ? get().riders.find((r: Rider) => r.id === riderId) : undefined;
@@ -400,7 +422,7 @@ export const useBuzzStore = create<BuzzState>()(
               get().recordWaiterSale(waiterId, ord.total);
             }
 
-            return {
+            targetOrder = {
               ...ord,
               status,
               updatedAt: now,
@@ -409,11 +431,15 @@ export const useBuzzStore = create<BuzzState>()(
               waiterId: waiterId || ord.waiterId,
               waiterName: waiterObj ? waiterObj.name : ord.waiterName
             };
+            return targetOrder;
           }
           return ord;
         });
 
         set({ orders: updatedOrders });
+        if (targetOrder) {
+          saveOrderToSupabase(targetOrder);
+        }
         get().showToast(`Order status updated to "${status}"`);
       },
 
@@ -518,6 +544,7 @@ export const useBuzzStore = create<BuzzState>()(
           timesUsed: 0
         };
         set({ coupons: [...get().coupons, newCoupon] });
+        saveCouponToSupabase(newCoupon);
         get().showToast(`Coupon code ${coupon.code} created!`);
       },
 
@@ -525,11 +552,14 @@ export const useBuzzStore = create<BuzzState>()(
         set({
           coupons: get().coupons.map((c: Coupon) => (c.id === id ? { ...c, ...fields } : c))
         });
+        const updated = get().coupons.find((c: Coupon) => c.id === id);
+        if (updated) saveCouponToSupabase(updated);
         get().showToast('Coupon updated!');
       },
 
       deleteCoupon: (id: string) => {
         set({ coupons: get().coupons.filter((c: Coupon) => c.id !== id) });
+        deleteCouponFromSupabase(id);
         get().showToast('Coupon removed', 'info');
       },
 
@@ -543,19 +573,27 @@ export const useBuzzStore = create<BuzzState>()(
       },
 
       addRider: (r: Omit<Rider, 'id'>) => {
-        set({ riders: [...get().riders, { ...r, id: `r-${Date.now()}` }] });
+        const newRider: Rider = { ...r, id: `r-${Date.now()}` };
+        set({ riders: [...get().riders, newRider] });
+        saveRiderToSupabase(newRider);
         get().showToast('Rider added!');
       },
       updateRider: (id: string, fields: Partial<Rider>) => {
         set({ riders: get().riders.map((r: Rider) => (r.id === id ? { ...r, ...fields } : r)) });
+        const updated = get().riders.find((r: Rider) => r.id === id);
+        if (updated) saveRiderToSupabase(updated);
       },
 
       addWaiter: (w: Omit<Waiter, 'id'>) => {
-        set({ waiters: [...get().waiters, { ...w, id: `w-${Date.now()}` }] });
+        const newWaiter: Waiter = { ...w, id: `w-${Date.now()}` };
+        set({ waiters: [...get().waiters, newWaiter] });
+        saveWaiterToSupabase(newWaiter);
         get().showToast('Waiter added!');
       },
       updateWaiter: (id: string, fields: Partial<Waiter>) => {
         set({ waiters: get().waiters.map((w: Waiter) => (w.id === id ? { ...w, ...fields } : w)) });
+        const updated = get().waiters.find((w: Waiter) => w.id === id);
+        if (updated) saveWaiterToSupabase(updated);
       },
       recordWaiterSale: (id: string, amount: number) => {
         set({
@@ -563,12 +601,16 @@ export const useBuzzStore = create<BuzzState>()(
             w.id === id ? { ...w, totalSales: w.totalSales + amount } : w
           )
         });
+        const updated = get().waiters.find((w: Waiter) => w.id === id);
+        if (updated) saveWaiterToSupabase(updated);
         get().showToast(`Recorded Rs. ${Math.round(amount).toLocaleString()} sale for waiter!`);
       },
 
       // Settings
       updateStoreSettings: (settings: Partial<StoreSettings>) => {
-        set({ storeSettings: { ...get().storeSettings, ...settings } });
+        const updatedSettings = { ...get().storeSettings, ...settings };
+        set({ storeSettings: updatedSettings });
+        saveSettingsToSupabase(updatedSettings);
         get().showToast('Store settings updated!');
       },
 
