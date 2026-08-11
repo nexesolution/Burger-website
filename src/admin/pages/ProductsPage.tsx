@@ -179,8 +179,8 @@ export const ProductsPage: React.FC = () => {
                   </div>
                 </td>
                 <td className="py-3 font-mono">{p.sku}</td>
-                <td className="py-3 font-bold text-buzz-yellow">${p.price.toFixed(2)}</td>
-                <td className="py-3 text-zinc-400">${p.cost.toFixed(2)}</td>
+                <td className="py-3 font-bold text-buzz-yellow">Rs. {p.price.toLocaleString()}</td>
+                <td className="py-3 text-zinc-400">Rs. {p.cost.toLocaleString()}</td>
                 <td className="py-3">
                   <span
                     className={`font-bold ${
@@ -255,10 +255,10 @@ export const ProductsPage: React.FC = () => {
 
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-1">
-                  <label className="text-xs text-zinc-400">Price ($)</label>
+                  <label className="text-xs text-zinc-400">Price (Rs.)</label>
                   <input
                     type="number"
-                    step="0.01"
+                    step="any"
                     required
                     value={price}
                     onChange={(e) => setPrice(parseFloat(e.target.value))}
@@ -266,7 +266,7 @@ export const ProductsPage: React.FC = () => {
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs text-zinc-400">Cost ($)</label>
+                  <label className="text-xs text-zinc-400">Cost (Rs.)</label>
                   <input
                     type="number"
                     step="0.01"

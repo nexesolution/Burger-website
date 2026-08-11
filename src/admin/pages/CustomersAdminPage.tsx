@@ -38,7 +38,7 @@ export const CustomersAdminPage: React.FC = () => {
                 </td>
                 <td className="py-3 font-bold text-white">{c.totalOrders} orders</td>
                 <td className="py-3 font-black text-buzz-yellow font-display">
-                  ${c.totalSpent.toFixed(2)}
+                  Rs. {Math.round(c.totalSpent).toLocaleString()}
                 </td>
                 <td className="py-3 font-bold text-emerald-400">{c.loyaltyPoints} PTS</td>
                 <td className="py-3 text-zinc-500">{c.lastOrderDate}</td>

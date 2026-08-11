@@ -53,7 +53,7 @@ export const ExpensesPage: React.FC = () => {
         <div>
           <span className="text-xs text-zinc-400 uppercase font-bold">Total Monthly Expenses</span>
           <span className="block text-3xl font-black font-display text-buzz-yellow mt-1">
-            ${totalExpenseAmount.toFixed(2)}
+            Rs. {Math.round(totalExpenseAmount).toLocaleString()}
           </span>
         </div>
       </div>
@@ -75,7 +75,7 @@ export const ExpensesPage: React.FC = () => {
               <tr key={exp.id} className="hover:bg-zinc-900/50">
                 <td className="py-3 font-bold text-white">{exp.title}</td>
                 <td className="py-3 text-zinc-400">{exp.category}</td>
-                <td className="py-3 font-bold text-buzz-yellow">${exp.amount.toFixed(2)}</td>
+                <td className="py-3 font-bold text-buzz-yellow">Rs. {Math.round(exp.amount).toLocaleString()}</td>
                 <td className="py-3 text-zinc-500">{exp.date}</td>
                 <td className="py-3 text-zinc-400 max-w-xs truncate">{exp.description}</td>
                 <td className="py-3 text-right">
@@ -109,7 +109,7 @@ export const ExpensesPage: React.FC = () => {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-xs text-zinc-400">Amount ($)</label>
+                  <label className="text-xs text-zinc-400">Amount (Rs.)</label>
                   <input
                     type="number"
                     step="0.01"

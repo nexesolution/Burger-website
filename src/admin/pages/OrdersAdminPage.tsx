@@ -67,7 +67,7 @@ export const OrdersAdminPage: React.FC = () => {
                 <td className="py-3 font-mono font-bold text-buzz-yellow">#{ord.orderNumber}</td>
                 <td className="py-3 font-bold text-white">{ord.customerName}</td>
                 <td className="py-3 text-zinc-400">{ord.orderType}</td>
-                <td className="py-3 font-bold text-white">${ord.total.toFixed(2)}</td>
+                <td className="py-3 font-bold text-white">Rs. {Math.round(ord.total).toLocaleString()}</td>
                 <td className="py-3">
                   <span className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-[10px] text-zinc-300 font-medium">
                     {ord.paymentMethod} ({ord.paymentStatus})

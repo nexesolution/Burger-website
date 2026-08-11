@@ -93,7 +93,7 @@ export const DashboardHome: React.FC = () => {
           </div>
           <div className="flex items-baseline justify-between">
             <span className="text-3xl font-black font-display text-white">
-              ${totalSalesAmount.toFixed(2)}
+              Rs. {Math.round(totalSalesAmount).toLocaleString()}
             </span>
             <span className="text-xs text-emerald-400 font-bold flex items-center">
               <ArrowUpRight className="w-3.5 h-3.5" /> +14.2%
@@ -131,7 +131,7 @@ export const DashboardHome: React.FC = () => {
           </div>
           <div className="flex items-baseline justify-between">
             <span className="text-3xl font-black font-display text-white">
-              ${averageOrderVal.toFixed(2)}
+              Rs. {Math.round(averageOrderVal).toLocaleString()}
             </span>
             <span className="text-xs text-emerald-400 font-bold flex items-center">
               <ArrowUpRight className="w-3.5 h-3.5" /> +3.1%
@@ -183,7 +183,7 @@ export const DashboardHome: React.FC = () => {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
                 <XAxis dataKey="time" stroke="#a1a1aa" fontSize={11} />
-                <YAxis stroke="#a1a1aa" fontSize={11} tickFormatter={(val) => `$${val}`} />
+                <YAxis stroke="#a1a1aa" fontSize={11} tickFormatter={(val) => `Rs. ${val}`} />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: '#121215',
@@ -221,7 +221,7 @@ export const DashboardHome: React.FC = () => {
                   </span>
                   <div className="space-y-0.5">
                     <span className="font-bold text-white block">{p.name}</span>
-                    <span className="text-[10px] text-zinc-400">${p.price.toFixed(2)}</span>
+                    <span className="text-[10px] text-zinc-400">Rs. {p.price.toLocaleString()}</span>
                   </div>
                 </div>
                 <span className="font-bold text-buzz-yellow">{80 - idx * 12} sold</span>

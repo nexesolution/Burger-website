@@ -66,7 +66,7 @@ export const DealsAdminPage: React.FC = () => {
                   {deal.badge || 'COMBO'}
                 </span>
                 <span className="text-xl font-black font-display text-buzz-yellow">
-                  ${deal.price.toFixed(2)}
+                  Rs. {deal.price.toLocaleString()}
                 </span>
               </div>
               <h3 className="text-lg font-bold font-display text-white">{deal.title}</h3>
@@ -100,10 +100,10 @@ export const DealsAdminPage: React.FC = () => {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-xs text-zinc-400">Deal Price ($)</label>
+                  <label className="text-xs text-zinc-400">Deal Price (Rs.)</label>
                   <input
                     type="number"
-                    step="0.01"
+                    step="any"
                     required
                     value={price}
                     onChange={(e) => setPrice(parseFloat(e.target.value))}
@@ -111,7 +111,7 @@ export const DealsAdminPage: React.FC = () => {
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs text-zinc-400">Original Value ($)</label>
+                  <label className="text-xs text-zinc-400">Original Value (Rs.)</label>
                   <input
                     type="number"
                     step="0.01"

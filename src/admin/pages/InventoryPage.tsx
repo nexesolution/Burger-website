@@ -85,7 +85,7 @@ export const InventoryPage: React.FC = () => {
                       {item.currentStock} {item.unit}
                     </span>
                   </td>
-                  <td className="py-3 font-mono text-buzz-yellow">${item.unitCost.toFixed(2)}</td>
+                  <td className="py-3 font-mono text-buzz-yellow">Rs. {Math.round(item.unitCost).toLocaleString()}</td>
                   <td className="py-3 text-zinc-400">{item.supplier}</td>
                   <td className="py-3 text-zinc-500">{item.lastUpdated}</td>
                   <td className="py-3 text-right space-x-1">

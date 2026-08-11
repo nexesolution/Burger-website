@@ -65,10 +65,10 @@ export const CouponsAdminPage: React.FC = () => {
               </button>
             </div>
             <p className="text-xs text-zinc-300">
-              {cp.discountType === 'percentage' ? `${cp.amount}% Discount` : `$${cp.amount} Flat Off`}
+              {cp.discountType === 'percentage' ? `${cp.amount}% Discount` : `Rs. ${cp.amount} Flat Off`}
             </p>
             <div className="text-[10px] text-zinc-500 space-y-0.5">
-              <p>Min Order: ${cp.minOrder.toFixed(2)}</p>
+              <p>Min Order: Rs. {cp.minOrder.toLocaleString()}</p>
               <p>Times Used: {cp.timesUsed} times</p>
             </div>
             <button
@@ -109,7 +109,7 @@ export const CouponsAdminPage: React.FC = () => {
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs text-zinc-400">Min Order ($)</label>
+                  <label className="text-xs text-zinc-400">Min Order (Rs.)</label>
                   <input
                     type="number"
                     required

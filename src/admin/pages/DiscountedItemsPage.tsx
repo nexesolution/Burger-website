@@ -35,9 +35,9 @@ export const DiscountedItemsPage: React.FC = () => {
             {discountedItems.map((item) => (
               <tr key={item.id} className="hover:bg-zinc-900/50">
                 <td className="py-3 font-bold text-white">{item.productName}</td>
-                <td className="py-3 text-zinc-500 line-through">${item.originalPrice.toFixed(2)}</td>
+                <td className="py-3 text-zinc-500 line-through">Rs. {item.originalPrice.toLocaleString()}</td>
                 <td className="py-3 font-bold text-buzz-yellow">{item.discountPercentage}% OFF</td>
-                <td className="py-3 font-black text-emerald-400">${item.discountedPrice.toFixed(2)}</td>
+                <td className="py-3 font-black text-emerald-400">Rs. {item.discountedPrice.toLocaleString()}</td>
                 <td className="py-3 text-zinc-400">
                   {item.startDate} to {item.endDate}
                 </td>
