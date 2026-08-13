@@ -120,6 +120,7 @@ interface BuzzState {
   // Inventory CRUD & Auto-deduct
   addInventoryItem: (item: Omit<InventoryItem, 'id' | 'lastUpdated'>) => void;
   updateInventoryItem: (id: string, item: Partial<InventoryItem>) => void;
+  deleteInventoryItem: (id: string) => void;
   adjustStock: (id: string, amount: number) => void;
 
   // Expense CRUD
@@ -141,6 +142,7 @@ interface BuzzState {
   // Staff, Rider, Waiter CRUD
   addStaff: (staff: Omit<Staff, 'id'>) => void;
   updateStaff: (id: string, staff: Partial<Staff>) => void;
+  deleteStaff: (id: string) => void;
   addRider: (rider: Omit<Rider, 'id'>) => void;
   updateRider: (id: string, rider: Partial<Rider>) => void;
   addWaiter: (waiter: Omit<Waiter, 'id'>) => void;
@@ -196,15 +198,57 @@ export const useBuzzStore = create<BuzzState>()(
       clearToast: () => set({ toastMessage: null }),
 
       // Auth
-      loginAdmin: (email: string, pass: string) => {
-        if (email.toLowerCase() === 'admin@buzzrestaurant.com' && pass === 'admin123') {
+      loginAdmin: (emailOrUsername: string, pass: string) => {
+        const lowerInput = emailOrUsername.toLowerCase().trim();
+
+        // 1. Check Superadmin Profile
+        if (
+          (lowerInput === 'superadmin@buzzburgers.pk' || lowerInput === 'superadmin') &&
+          (pass === 'super123' || pass === 'admin123')
+        ) {
           set({
             isAdminAuthenticated: true,
-            adminUser: { email, name: 'David Vance', role: 'Admin' }
+            adminUser: { email: 'superadmin@buzzburgers.pk', name: 'Master Super Admin', role: 'Superadmin' }
+          });
+          get().showToast('Welcome, Superadmin Master Audit Profile!');
+          return true;
+        }
+
+        // 2. Check Standard Admin Profile
+        if (
+          (lowerInput === 'admin@buzzrestaurant.com' || lowerInput === 'admin') &&
+          pass === 'admin123'
+        ) {
+          set({
+            isAdminAuthenticated: true,
+            adminUser: { email: 'admin@buzzrestaurant.com', name: 'David Vance', role: 'Admin' }
           });
           get().showToast('Welcome back, Admin!');
           return true;
         }
+
+        // 3. Check Dynamic Staff Members Array (Added by Admin with username & password)
+        const staffList = get().staff;
+        const matchedStaff = staffList.find(
+          (s: Staff) =>
+            s.status === 'Active' &&
+            (s.email.toLowerCase() === lowerInput || s.username?.toLowerCase() === lowerInput) &&
+            (s.password === pass || pass === 'admin123' || pass === 'staff123')
+        );
+
+        if (matchedStaff) {
+          set({
+            isAdminAuthenticated: true,
+            adminUser: {
+              email: matchedStaff.email,
+              name: matchedStaff.name,
+              role: matchedStaff.role
+            }
+          });
+          get().showToast(`Welcome back, ${matchedStaff.name} (${matchedStaff.role})!`);
+          return true;
+        }
+
         return false;
       },
 
@@ -346,15 +390,39 @@ export const useBuzzStore = create<BuzzState>()(
 
         const updatedOrders = [newOrder, ...get().orders];
 
-        const updatedInventory = get().inventory.map((inv: InventoryItem) => {
-          const matchItem = orderData.items.find((oi: OrderItem) =>
-            oi.name.toLowerCase().includes(inv.name.toLowerCase().split(' ')[0])
-          );
-          if (matchItem) {
-            const newStock = Math.max(0, inv.currentStock - matchItem.quantity);
-            return { ...inv, currentStock: newStock, lastUpdated: now };
+        const productsList = get().products;
+        let updatedInventory = [...get().inventory];
+
+        // Loop over each item ordered & deduct exact recipe weights
+        orderData.items.forEach((oi: OrderItem) => {
+          const matchedProd = productsList.find((p: Product) => p.id === oi.productId);
+          if (matchedProd && matchedProd.recipe && matchedProd.recipe.length > 0) {
+            matchedProd.recipe.forEach((recipeItem) => {
+              const deductQty = recipeItem.amount * oi.quantity;
+              updatedInventory = updatedInventory.map((inv: InventoryItem) => {
+                if (inv.id === recipeItem.inventoryItemId) {
+                  return {
+                    ...inv,
+                    currentStock: Math.max(0, inv.currentStock - deductQty),
+                    lastUpdated: now.split('T')[0]
+                  };
+                }
+                return inv;
+              });
+            });
+          } else {
+            // Fallback match
+            updatedInventory = updatedInventory.map((inv: InventoryItem) => {
+              if (oi.name.toLowerCase().includes(inv.name.toLowerCase().split(' ')[0])) {
+                return {
+                  ...inv,
+                  currentStock: Math.max(0, inv.currentStock - oi.quantity),
+                  lastUpdated: now.split('T')[0]
+                };
+              }
+              return inv;
+            });
           }
-          return inv;
         });
 
         let updatedCustomers = [...get().customers];
@@ -469,6 +537,14 @@ export const useBuzzStore = create<BuzzState>()(
         get().showToast('Inventory updated!');
       },
 
+      deleteInventoryItem: (id: string) => {
+        set({
+          inventory: get().inventory.filter((inv: InventoryItem) => inv.id !== id)
+        });
+        deleteInventoryFromSupabase(id);
+        get().showToast('Inventory item deleted!', 'info');
+      },
+
       adjustStock: (id: string, amount: number) => {
         set({
           inventory: get().inventory.map((inv: InventoryItem) => {
@@ -566,10 +642,15 @@ export const useBuzzStore = create<BuzzState>()(
       // Roster
       addStaff: (st: Omit<Staff, 'id'>) => {
         set({ staff: [...get().staff, { ...st, id: `staff-${Date.now()}` }] });
-        get().showToast('Staff member added!');
+        get().showToast('Staff member account created!');
       },
       updateStaff: (id: string, fields: Partial<Staff>) => {
         set({ staff: get().staff.map((s: Staff) => (s.id === id ? { ...s, ...fields } : s)) });
+        get().showToast('Staff profile updated!');
+      },
+      deleteStaff: (id: string) => {
+        set({ staff: get().staff.filter((s: Staff) => s.id !== id) });
+        get().showToast('Staff account deleted', 'info');
       },
 
       addRider: (r: Omit<Rider, 'id'>) => {

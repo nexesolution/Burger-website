@@ -1,3 +1,10 @@
+export interface ProductRecipeItem {
+  inventoryItemId: string;
+  inventoryItemName: string;
+  amount: number; // weightage e.g. 0.6 Kg, 1 Pcs, 0.2 Liters
+  unit: string;
+}
+
 export interface Product {
   id: string;
   sku: string;
@@ -9,10 +16,11 @@ export interface Product {
   cost: number;
   image: string;
   ingredients: string[];
+  recipe?: ProductRecipeItem[];
   calories: number;
   preparationTime: number; // in mins
-  stockQuantity: number;
-  lowStockThreshold: number;
+  stockQuantity?: number;
+  lowStockThreshold?: number;
   isFeatured: boolean;
   isAvailable: boolean;
   isSpicy: boolean;
@@ -101,6 +109,8 @@ export interface Staff {
   id: string;
   name: string;
   email: string;
+  username?: string;
+  password?: string;
   phone: string;
   role: StaffRole;
   status: 'Active' | 'Inactive';
@@ -233,13 +243,33 @@ export interface PrinterConfig {
   autoPrint: boolean;
 }
 
+export interface FBRTransmissionItem {
+  id: string;
+  orderNumber: string;
+  fbrInvoiceNumber: string;
+  customerName: string;
+  totalAmount: number;
+  taxAmount: number;
+  paymentMode: string;
+  fiscalizationStatus: 'FISCALIZED' | 'PENDING' | 'FAILED';
+  transmittedAt: string;
+  qrHash: string;
+}
+
 export interface FBRConfig {
   ntn: string;
+  strn: string;
   posId: string;
+  revenueAuthority: 'PRA (Punjab)' | 'SRB (Sindh)' | 'BRA (Balochistan)' | 'KPRA (KPK)' | 'FBR Federal';
+  cashTaxRate: number;
+  cardTaxRate: number;
   apiUrl: string;
   environment: 'Sandbox' | 'Production';
   token: string;
+  bearerToken: string;
+  terminalCode: string;
   isConnected: boolean;
+  autoFiscalize: boolean;
 }
 
 export interface PayFastConfig {

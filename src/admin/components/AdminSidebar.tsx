@@ -23,7 +23,8 @@ import {
   CreditCard,
   LogOut,
   X,
-  ExternalLink
+  ExternalLink,
+  UtensilsCrossed
 } from 'lucide-react';
 import { useBuzzStore } from '../../store/useBuzzStore';
 
@@ -36,34 +37,42 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onCloseM
   const location = useLocation();
   const navigate = useNavigate();
   const logoutAdmin = useBuzzStore((state) => state.logoutAdmin);
+  const adminUser = useBuzzStore((state) => state.adminUser);
 
-  const menuItems = [
-    { label: 'Dashboard', path: '/admin', icon: LayoutDashboard, exact: true },
-    { label: 'POS System', path: '/admin/pos', icon: MonitorCheck },
-    { label: 'Kitchen Display', path: '/admin/kds', icon: ChefHat },
-    { label: 'Categories', path: '/admin/categories', icon: FolderTree },
-    { label: 'Products', path: '/admin/products', icon: Package },
-    { label: 'Inventory', path: '/admin/inventory', icon: Boxes },
-    { label: 'Expenses', path: '/admin/expenses', icon: Receipt },
-    { label: 'Deals', path: '/admin/deals', icon: Gift },
-    { label: 'Discounted Items', path: '/admin/discounts', icon: Percent },
-    { label: 'Orders', path: '/admin/orders', icon: ShoppingBag },
-    { label: 'Riders', path: '/admin/riders', icon: Bike },
-    { label: 'Waiters', path: '/admin/waiters', icon: UserCheck },
-    { label: 'Sales Reports', path: '/admin/reports', icon: BarChart3 },
-    { label: 'Loyalty & Rewards', path: '/admin/loyalty', icon: Award },
-    { label: 'Coupons', path: '/admin/coupons', icon: Tag },
-    { label: 'Staff', path: '/admin/staff', icon: Users },
-    { label: 'Customers', path: '/admin/customers', icon: Users },
-    { label: 'Settings', path: '/admin/settings', icon: Settings },
-    { label: 'Printer Settings', path: '/admin/printer', icon: Printer },
-    { label: 'FBR Integration', path: '/admin/fbr', icon: FileCheck2 },
-    { label: 'PayFast Payments', path: '/admin/payfast', icon: CreditCard }
+  const role = adminUser?.role?.toLowerCase() || 'admin';
+
+  let allMenuItems = [
+    { label: 'Dashboard', path: '/admin', icon: LayoutDashboard, exact: true, roles: ['admin', 'manager', 'superadmin'] },
+    { label: 'POS System', path: '/admin/pos', icon: MonitorCheck, roles: ['admin', 'manager', 'cashier', 'waiter', 'superadmin'] },
+    { label: 'Kitchen Display', path: '/admin/kds', icon: ChefHat, roles: ['admin', 'manager', 'kitchen', 'superadmin'] },
+    { label: 'Rider Terminal', path: '/admin/rider-workspace', icon: Bike, roles: ['admin', 'manager', 'rider', 'superadmin'] },
+    { label: 'Waiter Table Pad', path: '/admin/waiter-workspace', icon: UtensilsCrossed, roles: ['admin', 'manager', 'waiter', 'superadmin'] },
+    { label: 'Categories', path: '/admin/categories', icon: FolderTree, roles: ['admin', 'manager', 'superadmin'] },
+    { label: 'Products', path: '/admin/products', icon: Package, roles: ['admin', 'manager', 'superadmin'] },
+    { label: 'Inventory', path: '/admin/inventory', icon: Boxes, roles: ['admin', 'manager', 'superadmin'] },
+    { label: 'Expenses', path: '/admin/expenses', icon: Receipt, roles: ['admin', 'manager', 'superadmin'] },
+    { label: 'Deals', path: '/admin/deals', icon: Gift, roles: ['admin', 'manager', 'superadmin'] },
+    { label: 'Discounted Items', path: '/admin/discounts', icon: Percent, roles: ['admin', 'manager', 'superadmin'] },
+    { label: 'Orders', path: '/admin/orders', icon: ShoppingBag, roles: ['admin', 'manager', 'cashier', 'superadmin'] },
+    { label: 'Riders Roster', path: '/admin/riders', icon: Bike, roles: ['admin', 'manager', 'superadmin'] },
+    { label: 'Waiters Roster', path: '/admin/waiters', icon: UserCheck, roles: ['admin', 'manager', 'superadmin'] },
+    { label: 'Sales Reports', path: '/admin/reports', icon: BarChart3, roles: ['admin', 'manager', 'superadmin'] },
+    { label: 'Loyalty & Rewards', path: '/admin/loyalty', icon: Award, roles: ['admin', 'manager', 'superadmin'] },
+    { label: 'Coupons', path: '/admin/coupons', icon: Tag, roles: ['admin', 'manager', 'superadmin'] },
+    { label: 'Staff Roster', path: '/admin/staff', icon: Users, roles: ['admin', 'manager', 'superadmin'] },
+    { label: 'Customers', path: '/admin/customers', icon: Users, roles: ['admin', 'manager', 'cashier', 'superadmin'] },
+    { label: 'Settings', path: '/admin/settings', icon: Settings, roles: ['admin', 'manager', 'superadmin'] },
+    { label: 'Printer Settings', path: '/admin/printer', icon: Printer, roles: ['admin', 'manager', 'superadmin'] },
+    { label: 'FBR Integration', path: '/admin/fbr', icon: FileCheck2, roles: ['admin', 'manager', 'superadmin'] },
+    { label: 'PayFast Payments', path: '/admin/payfast', icon: CreditCard, roles: ['admin', 'manager', 'superadmin'] }
   ];
+
+  // Filter menu items by current logged-in role
+  const menuItems = allMenuItems.filter((item) => item.roles.includes(role));
 
   const handleLogout = () => {
     logoutAdmin();
-    navigate('/');
+    navigate('/admin/login');
   };
 
   const sidebarContent = (
@@ -71,7 +80,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onCloseM
       {/* Brand Header */}
       <div className="p-5 border-b border-zinc-800 flex items-center justify-between">
         <NavLink to="/admin" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-buzz-yellow flex items-center justify-center font-black font-display text-buzz-black text-xs font-extrabold shadow-buzz-glow">
+          <div className="w-8 h-8 rounded-lg bg-buzz-yellow flex items-center justify-center font-black font-display text-buzz-black text-xs shadow-buzz-glow">
             BUZZ
           </div>
           <div className="flex flex-col">
@@ -116,6 +125,30 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onCloseM
           );
         })}
       </div>
+
+      {/* User Profile Badge */}
+      {adminUser && (
+        <div className="px-4 pt-3 pb-1 border-t border-zinc-800 flex items-center justify-between text-xs">
+          <div className="flex flex-col min-w-0">
+            <span className="font-bold text-white truncate">{adminUser.name}</span>
+            <span
+              className={`text-[10px] font-mono font-bold ${
+                adminUser.role === 'Superadmin'
+                  ? 'text-emerald-400'
+                  : adminUser.role === 'Rider'
+                  ? 'text-sky-400'
+                  : adminUser.role === 'Kitchen'
+                  ? 'text-amber-400'
+                  : adminUser.role === 'Waiter'
+                  ? 'text-purple-400'
+                  : 'text-buzz-yellow'
+              }`}
+            >
+              Role: {adminUser.role}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Footer System Actions */}
       <div className="p-4 border-t border-zinc-800 space-y-2">

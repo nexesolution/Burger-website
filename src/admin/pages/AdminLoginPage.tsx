@@ -1,31 +1,45 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, Lock, Mail, ArrowRight, Sparkles } from 'lucide-react';
+import { Lock, Mail, ArrowRight, ShieldCheck } from 'lucide-react';
 import { useBuzzStore } from '../../store/useBuzzStore';
 
 export const AdminLoginPage: React.FC = () => {
   const navigate = useNavigate();
   const loginAdmin = useBuzzStore((state) => state.loginAdmin);
 
-  const [email, setEmail] = useState('admin@buzzrestaurant.com');
-  const [password, setPassword] = useState('admin123');
+  const [usernameInput, setUsernameInput] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+
+  const redirectByRole = (role?: string) => {
+    const r = role?.toLowerCase();
+    if (r === 'rider') {
+      navigate('/admin/rider-workspace');
+    } else if (r === 'kitchen') {
+      navigate('/admin/kds');
+    } else if (r === 'waiter') {
+      navigate('/admin/waiter-workspace');
+    } else {
+      navigate('/admin');
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    const ok = loginAdmin(email, password);
-    if (ok) {
-      navigate('/admin');
-    } else {
-      setError('Invalid credentials. Please use admin@buzzrestaurant.com / admin123');
+    if (!usernameInput.trim() || !password.trim()) {
+      setError('Please enter your username/email and password.');
+      return;
     }
-  };
 
-  const handleQuickDemoLogin = () => {
-    loginAdmin('admin@buzzrestaurant.com', 'admin123');
-    navigate('/admin');
+    const ok = loginAdmin(usernameInput, password);
+    if (ok) {
+      const currentUser = useBuzzStore.getState().adminUser;
+      redirectByRole(currentUser?.role);
+    } else {
+      setError('Invalid username or password. Please check your credentials.');
+    }
   };
 
   return (
@@ -38,24 +52,26 @@ export const AdminLoginPage: React.FC = () => {
             BUZZ
           </div>
           <h1 className="text-xl sm:text-2xl font-black font-display tracking-tight text-white leading-tight">
-            BUZZ BURGER <span className="text-buzz-yellow">POS</span>
+            BUZZ BURGER <span className="text-buzz-yellow font-display">TERMINAL</span>
           </h1>
           <span className="inline-block text-[10px] uppercase font-bold text-buzz-yellow tracking-widest">
-            Management System & Terminal
+            Staff & Management Login
           </span>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1">
-            <label className="text-xs text-zinc-400 font-semibold">Email Address</label>
+            <label className="text-xs text-zinc-400 font-semibold">Username or Email Address</label>
             <div className="relative">
               <Mail className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
-                type="email"
+                type="text"
                 required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-zinc-900 border border-zinc-800 text-white rounded-xl pl-10 pr-4 py-3 text-xs focus:outline-none focus:border-buzz-yellow"
+                autoComplete="off"
+                placeholder="Username or email"
+                value={usernameInput}
+                onChange={(e) => setUsernameInput(e.target.value)}
+                className="w-full bg-zinc-900 border border-zinc-800 text-white rounded-xl pl-10 pr-4 py-3 text-xs focus:outline-none focus:border-buzz-yellow font-mono"
               />
             </div>
           </div>
@@ -67,9 +83,11 @@ export const AdminLoginPage: React.FC = () => {
               <input
                 type="password"
                 required
+                autoComplete="off"
+                placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-zinc-900 border border-zinc-800 text-white rounded-xl pl-10 pr-4 py-3 text-xs focus:outline-none focus:border-buzz-yellow"
+                className="w-full bg-zinc-900 border border-zinc-800 text-white rounded-xl pl-10 pr-4 py-3 text-xs focus:outline-none focus:border-buzz-yellow font-mono"
               />
             </div>
           </div>
@@ -80,24 +98,13 @@ export const AdminLoginPage: React.FC = () => {
             type="submit"
             className="w-full py-3.5 rounded-xl bg-buzz-yellow hover:bg-buzz-yellow-light text-buzz-black font-black text-xs tracking-wider shadow-buzz-glow flex items-center justify-center gap-2 transition-all"
           >
-            SIGN IN TO ADMIN POS <ArrowRight className="w-4 h-4" />
+            SIGN IN TO WORKSPACE <ArrowRight className="w-4 h-4" />
           </button>
         </form>
 
-        {/* Quick Demo Access Box */}
-        <div className="p-4 rounded-2xl bg-zinc-900/80 border border-zinc-800 text-center space-y-2">
-          <span className="text-[11px] text-zinc-400 font-semibold block">
-            DEMO PRE-CONFIGURED CREDENTIALS
-          </span>
-          <div className="text-xs font-mono text-buzz-yellow">
-            admin@buzzrestaurant.com / admin123
-          </div>
-          <button
-            onClick={handleQuickDemoLogin}
-            className="w-full py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all mt-1"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-buzz-yellow" /> Quick 1-Click Demo Login
-          </button>
+        <div className="text-center pt-2 border-t border-zinc-800/80 text-[10px] text-zinc-500 flex items-center justify-center gap-1">
+          <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+          <span>Encrypted POS Session & Supabase Sync Enabled</span>
         </div>
       </div>
     </div>

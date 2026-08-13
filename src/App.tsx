@@ -46,6 +46,10 @@ import { PrinterSettingsPage } from './admin/pages/PrinterSettingsPage';
 import { FbrIntegrationPage } from './admin/pages/FbrIntegrationPage';
 import { PayfastPage } from './admin/pages/PayfastPage';
 
+// Dedicated Staff Workspaces
+import { RiderWorkspacePage } from './admin/pages/RiderWorkspacePage';
+import { WaiterWorkspacePage } from './admin/pages/WaiterWorkspacePage';
+
 // Scroll to top on route change
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -103,6 +107,8 @@ export function App() {
           <Route index element={<DashboardHome />} />
           <Route path="pos" element={<PosSystemPage />} />
           <Route path="kds" element={<KitchenDisplayPage />} />
+          <Route path="rider-workspace" element={<RiderWorkspacePage />} />
+          <Route path="waiter-workspace" element={<WaiterWorkspacePage />} />
           <Route path="categories" element={<CategoriesPage />} />
           <Route path="products" element={<ProductsPage />} />
           <Route path="inventory" element={<InventoryPage />} />
