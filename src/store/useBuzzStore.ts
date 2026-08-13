@@ -77,6 +77,10 @@ interface BuzzState {
   fbrConfig: FBRConfig;
   payfastConfig: PayFastConfig;
 
+  // GST Tax Mode State
+  isGstEnabled: boolean;
+  toggleGstMode: (enabled?: boolean) => void;
+
   // Cart state
   cart: OrderItem[];
   appliedCoupon: Coupon | null;
@@ -180,6 +184,18 @@ export const useBuzzStore = create<BuzzState>()(
       printerConfig: INITIAL_PRINTER_CONFIG,
       fbrConfig: INITIAL_FBR_CONFIG,
       payfastConfig: INITIAL_PAYFAST_CONFIG,
+
+      // GST Tax Mode State
+      isGstEnabled: true,
+      toggleGstMode: (enabled?: boolean) => {
+        const nextState = enabled !== undefined ? enabled : !get().isGstEnabled;
+        set({ isGstEnabled: nextState });
+        if (nextState) {
+          get().showToast('GST Sales Tax Enabled (FBR Live Mode Active)', 'success');
+        } else {
+          get().showToast('GST Sales Tax Disabled (0% GST Mode Active)', 'info');
+        }
+      },
 
       // Cart & Auth
       cart: [],

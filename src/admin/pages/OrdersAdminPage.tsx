@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ShoppingBag,
   Eye,
@@ -15,7 +15,9 @@ import {
   Bike,
   UtensilsCrossed,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Percent,
+  Sliders
 } from 'lucide-react';
 import { useBuzzStore } from '../../store/useBuzzStore';
 import { Order, OrderStatus } from '../../types';
@@ -25,10 +27,27 @@ export const OrdersAdminPage: React.FC = () => {
   const orders = useBuzzStore((state) => state.orders);
   const riders = useBuzzStore((state) => state.riders);
   const updateOrderStatus = useBuzzStore((state) => state.updateOrderStatus);
+  const isGstEnabled = useBuzzStore((state) => state.isGstEnabled);
+  const toggleGstMode = useBuzzStore((state) => state.toggleGstMode);
 
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [receiptOrder, setReceiptOrder] = useState<Order | null>(null);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+
+  // Keyboard shortcut listener for Ctrl+F (Enable GST) and Ctrl+S (Disable GST)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && (e.key === 'f' || e.key === 'F')) {
+        e.preventDefault();
+        toggleGstMode(true);
+      } else if (e.ctrlKey && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+        toggleGstMode(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [toggleGstMode]);
 
   const toggleExpand = (orderId: string) => {
     setExpandedOrderId(expandedOrderId === orderId ? null : orderId);
@@ -42,33 +61,53 @@ export const OrdersAdminPage: React.FC = () => {
   return (
     <div className="space-y-6 text-white">
       {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-black font-display tracking-tight">
             MASTER ORDER <span className="text-buzz-yellow">LEDGER & DROPDOWN DETAILS</span>
           </h1>
           <p className="text-xs text-zinc-400">
-            Click any order dropdown to view complete customer profile, exact delivery location, itemized products & FBR status.
+            Click any order dropdown to view customer details, delivery location, items, & FBR status. Press{' '}
+            <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 text-buzz-yellow font-mono text-[10px] border border-zinc-700">
+              Ctrl+F
+            </kbd>{' '}
+            /
+            <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 text-buzz-yellow font-mono text-[10px] border border-zinc-700 ml-1">
+              Ctrl+S
+            </kbd>{' '}
+            to toggle GST.
           </p>
         </div>
 
-        {/* Status Filter Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full">
-          {['all', 'Received', 'Preparing', 'Ready', 'Out for Delivery', 'Delivered', 'Cancelled'].map(
-            (st) => (
-              <button
-                key={st}
-                onClick={() => setStatusFilter(st)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
-                  statusFilter === st
-                    ? 'bg-buzz-yellow text-buzz-black shadow-buzz-glow font-black'
-                    : 'bg-zinc-900 text-zinc-400 hover:text-white'
-                }`}
-              >
-                {st === 'all' ? 'All Orders' : st}
-              </button>
-            )
-          )}
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Discreet GST Tax Toggle Button (Only Pop-up notification shown, NO screen clutter) */}
+          <button
+            onClick={() => toggleGstMode()}
+            className="px-3.5 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-buzz-yellow border border-zinc-800 font-extrabold text-xs flex items-center gap-2 shadow-sm transition-all"
+            title="Press Ctrl+F to Enable GST or Ctrl+S to Disable GST"
+          >
+            <Sliders className="w-4 h-4 text-buzz-yellow" />
+            <span>GST Tax Settings</span>
+          </button>
+
+          {/* Status Filter Pills */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full">
+            {['all', 'Received', 'Preparing', 'Ready', 'Out for Delivery', 'Delivered', 'Cancelled'].map(
+              (st) => (
+                <button
+                  key={st}
+                  onClick={() => setStatusFilter(st)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                    statusFilter === st
+                      ? 'bg-buzz-yellow text-buzz-black shadow-buzz-glow font-black'
+                      : 'bg-zinc-900 text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  {st === 'all' ? 'All Orders' : st}
+                </button>
+              )
+            )}
+          </div>
         </div>
       </div>
 
@@ -81,6 +120,11 @@ export const OrdersAdminPage: React.FC = () => {
         ) : (
           filteredOrders.map((ord) => {
             const isExpanded = expandedOrderId === ord.id;
+
+            // Compute Tax based on current GST mode
+            const effectiveTax = isGstEnabled ? ord.tax : 0;
+            const effectiveTotal = ord.subtotal + ord.deliveryFee + effectiveTax - ord.discount;
+
             return (
               <div
                 key={ord.id}
@@ -112,7 +156,7 @@ export const OrdersAdminPage: React.FC = () => {
                   <div className="flex items-center gap-3 flex-wrap w-full lg:w-auto justify-between lg:justify-end border-t lg:border-t-0 pt-3 lg:pt-0 border-zinc-800">
                     <div className="text-left lg:text-right">
                       <span className="text-sm font-black text-buzz-yellow font-mono block">
-                        Rs. {Math.round(ord.total).toLocaleString()}
+                        Rs. {Math.round(effectiveTotal).toLocaleString()}
                       </span>
                       <span className="text-[10px] text-zinc-400">
                         {ord.paymentMethod} ({ord.paymentStatus})
@@ -150,7 +194,7 @@ export const OrdersAdminPage: React.FC = () => {
 
                     {/* Action Buttons */}
                     <button
-                      onClick={() => setReceiptOrder(ord)}
+                      onClick={() => setReceiptOrder({ ...ord, tax: effectiveTax, total: effectiveTotal })}
                       className="p-2 rounded-xl bg-zinc-900 text-buzz-yellow hover:bg-zinc-800 border border-zinc-800"
                       title="Print Thermal Receipt"
                     >
@@ -301,7 +345,7 @@ export const OrdersAdminPage: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Financial Totals Breakdown */}
+                    {/* Financial Totals Breakdown (Without clutter or off tags) */}
                     <div className="p-4 rounded-2xl bg-zinc-950 border border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
                       <div className="text-zinc-400 space-y-1 text-center sm:text-left">
                         {ord.notes && (
@@ -325,11 +369,11 @@ export const OrdersAdminPage: React.FC = () => {
                         </div>
                         <div className="flex justify-between sm:justify-end gap-6 text-zinc-400">
                           <span>Sales Tax (GST):</span>
-                          <span className="text-emerald-400">Rs. {Math.round(ord.tax).toLocaleString()}</span>
+                          <span className="text-emerald-400">Rs. {Math.round(effectiveTax).toLocaleString()}</span>
                         </div>
                         <div className="flex justify-between sm:justify-end gap-6 text-sm font-black text-buzz-yellow pt-1 border-t border-zinc-800">
                           <span>Grand Total Paid:</span>
-                          <span>Rs. {Math.round(ord.total).toLocaleString()}</span>
+                          <span>Rs. {Math.round(effectiveTotal).toLocaleString()}</span>
                         </div>
                       </div>
                     </div>
