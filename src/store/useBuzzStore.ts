@@ -156,8 +156,10 @@ interface BuzzState {
   deleteStaff: (id: string) => void;
   addRider: (rider: Omit<Rider, 'id'>) => void;
   updateRider: (id: string, rider: Partial<Rider>) => void;
+  deleteRider: (id: string) => void;
   addWaiter: (waiter: Omit<Waiter, 'id'>) => void;
   updateWaiter: (id: string, waiter: Partial<Waiter>) => void;
+  deleteWaiter: (id: string) => void;
   recordWaiterSale: (id: string, amount: number) => void;
 
   // Settings updates
@@ -816,6 +818,23 @@ export const useBuzzStore = create<BuzzState>()(
         const updated = get().riders.find((r: Rider) => r.id === id);
         if (updated) saveRiderToSupabase(updated);
       },
+      deleteRider: (id: string) => {
+        const targetRider = get().riders.find((r) => r.id === id);
+        set({ riders: get().riders.filter((r: Rider) => r.id !== id) });
+        const client = getSupabaseClient();
+        if (client) client.from('riders').delete().eq('id', id);
+
+        if (targetRider) {
+          const matchedStaff = get().staff.find(
+            (s) => (s.email && targetRider.email && s.email.toLowerCase() === targetRider.email.toLowerCase()) || s.name.toLowerCase() === targetRider.name.toLowerCase()
+          );
+          if (matchedStaff) {
+            set({ staff: get().staff.filter((s) => s.id !== matchedStaff.id) });
+            if (client) client.from('staff').delete().eq('id', matchedStaff.id);
+          }
+        }
+        get().showToast('Rider profile deleted!', 'info');
+      },
 
       addWaiter: (w: Omit<Waiter, 'id'>) => {
         const newWaiter: Waiter = { ...w, id: `w-${Date.now()}` };
@@ -827,6 +846,23 @@ export const useBuzzStore = create<BuzzState>()(
         set({ waiters: get().waiters.map((w: Waiter) => (w.id === id ? { ...w, ...fields } : w)) });
         const updated = get().waiters.find((w: Waiter) => w.id === id);
         if (updated) saveWaiterToSupabase(updated);
+      },
+      deleteWaiter: (id: string) => {
+        const targetWaiter = get().waiters.find((w) => w.id === id);
+        set({ waiters: get().waiters.filter((w: Waiter) => w.id !== id) });
+        const client = getSupabaseClient();
+        if (client) client.from('waiters').delete().eq('id', id);
+
+        if (targetWaiter) {
+          const matchedStaff = get().staff.find(
+            (s) => (s.email && targetWaiter.email && s.email.toLowerCase() === targetWaiter.email.toLowerCase()) || s.name.toLowerCase() === targetWaiter.name.toLowerCase()
+          );
+          if (matchedStaff) {
+            set({ staff: get().staff.filter((s) => s.id !== matchedStaff.id) });
+            if (client) client.from('staff').delete().eq('id', matchedStaff.id);
+          }
+        }
+        get().showToast('Waiter profile deleted!', 'info');
       },
       recordWaiterSale: (id: string, amount: number) => {
         set({

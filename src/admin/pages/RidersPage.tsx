@@ -9,6 +9,7 @@ export const RidersPage: React.FC = () => {
   const orders = useBuzzStore((state) => state.orders);
   const addRider = useBuzzStore((state) => state.addRider);
   const updateRider = useBuzzStore((state) => state.updateRider);
+  const deleteRider = useBuzzStore((state) => state.deleteRider);
   const addStaff = useBuzzStore((state) => state.addStaff);
   const updateStaff = useBuzzStore((state) => state.updateStaff);
   const showToast = useBuzzStore((state) => state.showToast);
@@ -313,12 +314,25 @@ export const RidersPage: React.FC = () => {
                   <Star className="w-3.5 h-3.5 fill-buzz-yellow" /> {r.rating || 5.0} Rating
                 </span>
 
-                <button
-                  onClick={() => openEditModal(r)}
-                  className="px-3.5 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white font-bold text-xs border border-zinc-800 flex items-center gap-1.5 transition-colors"
-                >
-                  <Edit className="w-3.5 h-3.5 text-buzz-yellow" /> Edit Credentials & Profile
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => openEditModal(r)}
+                    className="px-3 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white font-bold text-xs border border-zinc-800 flex items-center gap-1.5 transition-colors"
+                  >
+                    <Edit className="w-3.5 h-3.5 text-buzz-yellow" /> Edit
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (window.confirm(`Are you sure you want to permanently delete rider profile for ${r.name}?`)) {
+                        deleteRider(r.id);
+                      }
+                    }}
+                    className="p-2 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/30 transition-colors"
+                    title="Delete Rider Profile"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
             </div>
           );

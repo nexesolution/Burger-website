@@ -140,6 +140,7 @@ const formatWaiterForSupabase = (w: Waiter) => ({
   id: w.id,
   name: w.name,
   phone: w.phone,
+  email: w.email || null,
   status: w.status,
   assigned_tables: w.assignedTables || [],
   total_sales: w.totalSales || 0

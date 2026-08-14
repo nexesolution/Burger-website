@@ -121,6 +121,7 @@ export interface Waiter {
   id: string;
   name: string;
   phone: string;
+  email?: string;
   status: 'Available' | 'On Shift' | 'Off Shift';
   assignedTables: string[];
   totalSales: number;
