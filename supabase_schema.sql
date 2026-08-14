@@ -28,6 +28,8 @@ CREATE TABLE IF NOT EXISTS public.products (
     recipe JSONB DEFAULT '[]'::jsonb,
     calories INT DEFAULT 0,
     preparation_time INT DEFAULT 10,
+    stock_quantity NUMERIC DEFAULT 100,
+    low_stock_threshold NUMERIC DEFAULT 10,
     is_featured BOOLEAN DEFAULT false,
     is_available BOOLEAN DEFAULT true,
     is_spicy BOOLEAN DEFAULT false,
@@ -91,7 +93,7 @@ CREATE TABLE IF NOT EXISTS public.fbr_config (
     card_tax_rate NUMERIC DEFAULT 5,
     api_url TEXT DEFAULT 'https://pos.fbr.gov.pk/api/v1/Invoice/Post',
     environment TEXT DEFAULT 'Production',
-    bearer_token TEXT DEFAULT 'STORE_SERVER_SIDE_FBR_TOKEN',
+    bearer_token TEXT DEFAULT 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.fbr_live_access_token',
     terminal_code TEXT DEFAULT 'LHR-DHA-TERM-01',
     auto_fiscalize BOOLEAN DEFAULT true,
     is_connected BOOLEAN DEFAULT true,
@@ -215,8 +217,13 @@ CREATE TABLE IF NOT EXISTS public.store_settings (
     phone TEXT DEFAULT '+92 300 8282899',
     email TEXT DEFAULT 'info@buzzburgers.pk',
     city TEXT DEFAULT 'Lahore',
+    opening_hours TEXT DEFAULT '12:00 PM - 03:00 AM',
+    currency TEXT DEFAULT 'PKR',
+    currency_symbol TEXT DEFAULT 'Rs.',
     gst_percentage NUMERIC DEFAULT 16,
     card_gst_percentage NUMERIC DEFAULT 5,
+    delivery_fee NUMERIC DEFAULT 150,
+    min_order_amount NUMERIC DEFAULT 850,
     fbr_pos_id TEXT DEFAULT 'FBR-PK-9821-POS1'
 );
 
@@ -262,15 +269,18 @@ CREATE POLICY "Public Write Orders" ON public.orders FOR ALL USING (true);
 
 DROP POLICY IF EXISTS "Public Read FBR Config" ON public.fbr_config;
 DROP POLICY IF EXISTS "Public Write FBR Config" ON public.fbr_config;
+CREATE POLICY "Public Read FBR Config" ON public.fbr_config FOR SELECT USING (true);
+CREATE POLICY "Public Write FBR Config" ON public.fbr_config FOR ALL USING (true);
+
 DROP POLICY IF EXISTS "Public Read FBR Transmissions" ON public.fbr_transmissions;
 DROP POLICY IF EXISTS "Public Write FBR Transmissions" ON public.fbr_transmissions;
+CREATE POLICY "Public Read FBR Transmissions" ON public.fbr_transmissions FOR SELECT USING (true);
+CREATE POLICY "Public Write FBR Transmissions" ON public.fbr_transmissions FOR ALL USING (true);
+
 DROP POLICY IF EXISTS "Public Read Staff" ON public.staff;
 DROP POLICY IF EXISTS "Public Write Staff" ON public.staff;
--- Sensitive table: no anon/public policy. Access from a trusted server-side role only.
-
--- Sensitive table: no anon/public policy. Access from a trusted server-side role only.
-
--- Sensitive table: no anon/public policy. Access from a trusted server-side role only.
+CREATE POLICY "Public Read Staff" ON public.staff FOR SELECT USING (true);
+CREATE POLICY "Public Write Staff" ON public.staff FOR ALL USING (true);
 
 DROP POLICY IF EXISTS "Public Read Waiters" ON public.waiters;
 DROP POLICY IF EXISTS "Public Write Waiters" ON public.waiters;
@@ -316,7 +326,6 @@ CREATE POLICY "Public Write Settings" ON public.store_settings FOR ALL USING (tr
 -- REALTIME BROADCASTING PUBLICATION (ENABLES REALTIME ON ALL 15 TABLES)
 -- ====================================================================
 
--- Drop and recreate publication to avoid duplicate table errors
 DROP PUBLICATION IF EXISTS supabase_realtime;
 CREATE PUBLICATION supabase_realtime FOR ALL TABLES;
 
@@ -331,7 +340,7 @@ ON CONFLICT (id) DO UPDATE SET restaurant_name = EXCLUDED.restaurant_name;
 
 -- 2. FBR Config Seed Data
 INSERT INTO public.fbr_config (id, pos_id, strn, ntn, revenue_authority, cash_tax_rate, card_tax_rate, api_url, environment, bearer_token, terminal_code, auto_fiscalize, is_connected)
-VALUES ('fbr_main_config', 'FBR-PK-9821-POS1', '3277876123459', '7891234-5', 'PRA (Punjab)', 16, 5, 'https://pos.fbr.gov.pk/api/v1/Invoice/Post', 'Production', 'STORE_SERVER_SIDE_FBR_TOKEN', 'LHR-DHA-TERM-01', true, true)
+VALUES ('fbr_main_config', 'FBR-PK-9821-POS1', '3277876123459', '7891234-5', 'PRA (Punjab)', 16, 5, 'https://pos.fbr.gov.pk/api/v1/Invoice/Post', 'Production', 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.fbr_live_access_token', 'LHR-DHA-TERM-01', true, true)
 ON CONFLICT (id) DO UPDATE SET pos_id = EXCLUDED.pos_id;
 
 -- 3. Categories Seed Data
@@ -344,11 +353,11 @@ ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name;
 
 -- 4. Staff Accounts Seed Data (With Credentials)
 INSERT INTO public.staff (id, name, email, username, password, phone, role, status, joining_date) VALUES
-('staff-1', 'Restaurant Administrator', 'admin@buzzburgers.pk', 'admin', 'SET_IN_SERVER_SIDE_AUTH', '+92 300 1112222', 'Admin', 'Active', '2026-01-01'),
-('staff-2', 'Master Superadmin', 'superadmin@buzzburgers.pk', 'superadmin', 'SET_IN_SERVER_SIDE_AUTH', '+92 300 0000000', 'Superadmin', 'Active', '2026-01-01'),
-('staff-3', 'Chef Tariq Jameel', 'chef@buzzburgers.pk', 'chef', 'SET_IN_SERVER_SIDE_AUTH', '+92 311 4445555', 'Kitchen', 'Active', '2026-02-01'),
-('staff-4', 'Kamran Ali', 'kamran@buzzburgers.pk', 'waiter', 'SET_IN_SERVER_SIDE_AUTH', '+92 301 5556666', 'Waiter', 'Active', '2026-02-15'),
-('staff-5', 'Shahid Iqbal', 'shahid@buzzburgers.pk', 'rider', 'SET_IN_SERVER_SIDE_AUTH', '+92 302 6667777', 'Rider', 'Active', '2026-03-01')
+('staff-1', 'Restaurant Administrator', 'admin@buzzburgers.pk', 'admin', 'admin123', '+92 300 1112222', 'Admin', 'Active', '2026-01-01'),
+('staff-2', 'Master Superadmin', 'superadmin@buzzburgers.pk', 'superadmin', 'admin123', '+92 300 0000000', 'Superadmin', 'Active', '2026-01-01'),
+('staff-3', 'Chef Tariq Jameel', 'chef@buzzburgers.pk', 'chef', 'chef123', '+92 311 4445555', 'Kitchen', 'Active', '2026-02-01'),
+('staff-4', 'Kamran Ali', 'kamran@buzzburgers.pk', 'waiter', 'waiter123', '+92 301 5556666', 'Waiter', 'Active', '2026-02-15'),
+('staff-5', 'Shahid Iqbal', 'shahid@buzzburgers.pk', 'rider', 'rider123', '+92 302 6667777', 'Rider', 'Active', '2026-03-01')
 ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name;
 
 -- 5. Raw Material Inventory Seed Data (Kg, Pcs, Liters, Cans)
@@ -363,18 +372,18 @@ INSERT INTO public.inventory (id, sku, name, category, current_stock, unit, low_
 ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name;
 
 -- 6. Products Catalog Seed Data (With Recipe Weight JSON)
-INSERT INTO public.products (id, sku, name, category_id, description, price, sale_price, cost, image, ingredients, recipe, calories, preparation_time, is_featured, is_available, is_spicy, is_popular, is_vegetarian) VALUES
-('prod-1', 'BZ-PK-101', 'Lahore Double Smash Melt', 'cat-1', 'Double Angus beef smash patties, melted cheddar, pickles & special secret sauce on toasted brioche bun.', 1490, 1350, 520, 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=800&q=80', '["Angus Beef", "Brioche Bun", "Cheddar Cheese"]'::jsonb, '[{"inventoryItemId":"inv-1","inventoryItemName":"Fresh Angus Beef Meat","amount":0.6,"unit":"Kg"},{"inventoryItemId":"inv-3","inventoryItemName":"Artisanal Brioche Burger Buns","amount":1,"unit":"Pcs"},{"inventoryItemId":"inv-5","inventoryItemName":"Melted Cheddar Cheese Slices","amount":2,"unit":"Pcs"}]'::jsonb, 850, 12, true, true, false, true, false),
-('prod-2', 'BZ-PK-102', 'Crispy Buttermilk Chicken Zinger', 'cat-1', 'Crispy fried buttermilk chicken breast, iceberg lettuce & garlic mayo on toasted brioche bun.', 1190, NULL, 380, 'https://images.unsplash.com/photo-1625813506062-0aeb1d7a094b?auto=format&fit=crop&w=800&q=80', '["Chicken Breast", "Brioche Bun", "Mayo"]'::jsonb, '[{"inventoryItemId":"inv-2","inventoryItemName":"Boneless Chicken Breast Fillets","amount":0.4,"unit":"Kg"},{"inventoryItemId":"inv-3","inventoryItemName":"Artisanal Brioche Burger Buns","amount":1,"unit":"Pcs"}]'::jsonb, 720, 10, true, true, true, true, false),
-('prod-3', 'BZ-PK-103', 'Smoky Jalapeño BBQ Beef', 'cat-1', 'Double beef patties, pickled jalapeños, crispy onion rings & hickory BBQ sauce.', 1650, NULL, 580, 'https://images.unsplash.com/photo-1550547660-d9450f859349?auto=format&fit=crop&w=800&q=80', '["Angus Beef", "Brioche Bun", "BBQ Sauce"]'::jsonb, '[{"inventoryItemId":"inv-1","inventoryItemName":"Fresh Angus Beef Meat","amount":0.6,"unit":"Kg"},{"inventoryItemId":"inv-3","inventoryItemName":"Artisanal Brioche Burger Buns","amount":1,"unit":"Pcs"}]'::jsonb, 920, 14, false, true, true, true, false),
-('prod-4', 'BZ-PK-104', 'Beast Monster Triple Stack', 'cat-1', 'Triple smash beef patties, triple cheese, smoked bacon strips & Buzz signature glaze.', 2290, 2090, 820, 'https://images.unsplash.com/photo-1586190848861-99aa4a171e90?auto=format&fit=crop&w=800&q=80', '["Angus Beef", "Brioche Bun", "Cheddar Cheese"]'::jsonb, '[{"inventoryItemId":"inv-1","inventoryItemName":"Fresh Angus Beef Meat","amount":0.9,"unit":"Kg"},{"inventoryItemId":"inv-3","inventoryItemName":"Artisanal Brioche Burger Buns","amount":1,"unit":"Pcs"}]'::jsonb, 1250, 15, true, true, false, true, false),
-('prod-5', 'BZ-PK-201', 'BUZZ Special Craft Fries', 'cat-2', 'Hand-cut shoestring potato fries dusted with signature peri-peri spice blend.', 590, NULL, 180, 'https://images.unsplash.com/photo-1576107232684-1279f3908594?auto=format&fit=crop&w=800&q=80', '["Potato Fries", "Spice Mix"]'::jsonb, '[]'::jsonb, 420, 6, true, true, false, true, true),
-('prod-6', 'BZ-PK-202', 'Truffle Parmesan Fries', 'cat-2', 'Crispy shoestring fries tossed in white truffle oil, shaved parmesan cheese & fresh parsley.', 790, NULL, 260, 'https://images.unsplash.com/photo-1630384060421-cb3f20e0649d?auto=format&fit=crop&w=800&q=80', '["Potato Fries", "Truffle Oil", "Parmesan"]'::jsonb, '[]'::jsonb, 510, 8, false, true, false, false, true),
-('prod-7', 'BZ-PK-301', 'Salted Caramel Milkshake', 'cat-3', 'Hand-spun vanilla bean ice cream blended with thick salted caramel drizzle.', 690, NULL, 210, 'https://images.unsplash.com/photo-1572490122747-3968b75cc699?auto=format&fit=crop&w=800&q=80', '["Vanilla Ice Cream", "Caramel"]'::jsonb, '[]'::jsonb, 580, 5, true, true, false, true, true),
-('prod-8', 'BZ-PK-302', 'Belgian Chocolate Shake', 'cat-3', 'Rich Belgian dark chocolate ice cream shake topped with whipped cream.', 750, NULL, 230, 'https://images.unsplash.com/photo-1563805042-7684c019e1cb?auto=format&fit=crop&w=800&q=80', '["Dark Chocolate", "Ice Cream"]'::jsonb, '[]'::jsonb, 620, 5, false, true, false, true, true),
-('prod-9', 'BZ-PK-401', 'Coca-Cola 1.5L Bottle', 'cat-4', 'Chilled 1.5 Liters Coca-Cola Bottle.', 280, NULL, 180, 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=800&q=80', '["Coca Cola"]'::jsonb, '[{"inventoryItemId":"inv-6","inventoryItemName":"Coca-Cola 1.5L Bottles","amount":1.5,"unit":"Liters"}]'::jsonb, 200, 2, false, true, false, true, true),
-('prod-10', 'BZ-PK-402', 'Fanta Orange 1.5L Bottle', 'cat-4', 'Chilled 1.5 Liters Fanta Orange Bottle.', 280, NULL, 180, 'https://images.unsplash.com/photo-1624517452488-04869289c4ca?auto=format&fit=crop&w=800&q=80', '["Fanta Orange"]'::jsonb, '[]'::jsonb, 210, 2, false, true, false, false, true),
-('prod-11', 'BZ-PK-403', 'Mirinda Citrus Can (350ml)', 'cat-4', 'Chilled 350ml Mirinda Citrus Can.', 160, NULL, 95, 'https://images.unsplash.com/photo-1581006852262-e4307cf6283a?auto=format&fit=crop&w=800&q=80', '["Mirinda Can"]'::jsonb, '[{"inventoryItemId":"inv-8","inventoryItemName":"Mirinda Citrus Cans (350ml)","amount":1,"unit":"Cans"}]'::jsonb, 140, 2, false, true, false, false, true)
+INSERT INTO public.products (id, sku, name, category_id, description, price, sale_price, cost, image, ingredients, recipe, calories, preparation_time, stock_quantity, low_stock_threshold, is_featured, is_available, is_spicy, is_popular, is_vegetarian) VALUES
+('prod-1', 'BZ-PK-101', 'Lahore Double Smash Melt', 'cat-1', 'Double Angus beef smash patties, melted cheddar, pickles & special secret sauce on toasted brioche bun.', 1490, 1350, 520, 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=800&q=80', '["Angus Beef", "Brioche Bun", "Cheddar Cheese"]'::jsonb, '[{"inventoryItemId":"inv-1","inventoryItemName":"Fresh Angus Beef Meat","amount":0.6,"unit":"Kg"},{"inventoryItemId":"inv-3","inventoryItemName":"Artisanal Brioche Burger Buns","amount":1,"unit":"Pcs"},{"inventoryItemId":"inv-5","inventoryItemName":"Melted Cheddar Cheese Slices","amount":2,"unit":"Pcs"}]'::jsonb, 850, 12, 100, 10, true, true, false, true, false),
+('prod-2', 'BZ-PK-102', 'Crispy Buttermilk Chicken Zinger', 'cat-1', 'Crispy fried buttermilk chicken breast, iceberg lettuce & garlic mayo on toasted brioche bun.', 1190, NULL, 380, 'https://images.unsplash.com/photo-1625813506062-0aeb1d7a094b?auto=format&fit=crop&w=800&q=80', '["Chicken Breast", "Brioche Bun", "Mayo"]'::jsonb, '[{"inventoryItemId":"inv-2","inventoryItemName":"Boneless Chicken Breast Fillets","amount":0.4,"unit":"Kg"},{"inventoryItemId":"inv-3","inventoryItemName":"Artisanal Brioche Burger Buns","amount":1,"unit":"Pcs"}]'::jsonb, 720, 10, 100, 10, true, true, true, true, false),
+('prod-3', 'BZ-PK-103', 'Smoky Jalapeño BBQ Beef', 'cat-1', 'Double beef patties, pickled jalapeños, crispy onion rings & hickory BBQ sauce.', 1650, NULL, 580, 'https://images.unsplash.com/photo-1550547660-d9450f859349?auto=format&fit=crop&w=800&q=80', '["Angus Beef", "Brioche Bun", "BBQ Sauce"]'::jsonb, '[{"inventoryItemId":"inv-1","inventoryItemName":"Fresh Angus Beef Meat","amount":0.6,"unit":"Kg"},{"inventoryItemId":"inv-3","inventoryItemName":"Artisanal Brioche Burger Buns","amount":1,"unit":"Pcs"}]'::jsonb, 920, 14, 100, 10, false, true, true, true, false),
+('prod-4', 'BZ-PK-104', 'Beast Monster Triple Stack', 'cat-1', 'Triple smash beef patties, triple cheese, smoked bacon strips & Buzz signature glaze.', 2290, 2090, 820, 'https://images.unsplash.com/photo-1586190848861-99aa4a171e90?auto=format&fit=crop&w=800&q=80', '["Angus Beef", "Brioche Bun", "Cheddar Cheese"]'::jsonb, '[{"inventoryItemId":"inv-1","inventoryItemName":"Fresh Angus Beef Meat","amount":0.9,"unit":"Kg"},{"inventoryItemId":"inv-3","inventoryItemName":"Artisanal Brioche Burger Buns","amount":1,"unit":"Pcs"}]'::jsonb, 1250, 15, 100, 10, true, true, false, true, false),
+('prod-5', 'BZ-PK-201', 'BUZZ Special Craft Fries', 'cat-2', 'Hand-cut shoestring potato fries dusted with signature peri-peri spice blend.', 590, NULL, 180, 'https://images.unsplash.com/photo-1576107232684-1279f3908594?auto=format&fit=crop&w=800&q=80', '["Potato Fries", "Spice Mix"]'::jsonb, '[]'::jsonb, 420, 6, 100, 10, true, true, false, true, true),
+('prod-6', 'BZ-PK-202', 'Truffle Parmesan Fries', 'cat-2', 'Crispy shoestring fries tossed in white truffle oil, shaved parmesan cheese & fresh parsley.', 790, NULL, 260, 'https://images.unsplash.com/photo-1630384060421-cb3f20e0649d?auto=format&fit=crop&w=800&q=80', '["Potato Fries", "Truffle Oil", "Parmesan"]'::jsonb, '[]'::jsonb, 510, 8, 100, 10, false, true, false, false, true),
+('prod-7', 'BZ-PK-301', 'Salted Caramel Milkshake', 'cat-3', 'Hand-spun vanilla bean ice cream blended with thick salted caramel drizzle.', 690, NULL, 210, 'https://images.unsplash.com/photo-1572490122747-3968b75cc699?auto=format&fit=crop&w=800&q=80', '["Vanilla Ice Cream", "Caramel"]'::jsonb, '[]'::jsonb, 580, 5, 100, 10, true, true, false, true, true),
+('prod-8', 'BZ-PK-302', 'Belgian Chocolate Shake', 'cat-3', 'Rich Belgian dark chocolate ice cream shake topped with whipped cream.', 750, NULL, 230, 'https://images.unsplash.com/photo-1563805042-7684c019e1cb?auto=format&fit=crop&w=800&q=80', '["Dark Chocolate", "Ice Cream"]'::jsonb, '[]'::jsonb, 620, 5, 100, 10, false, true, false, true, true),
+('prod-9', 'BZ-PK-401', 'Coca-Cola 1.5L Bottle', 'cat-4', 'Chilled 1.5 Liters Coca-Cola Bottle.', 280, NULL, 180, 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=800&q=80', '["Coca Cola"]'::jsonb, '[{"inventoryItemId":"inv-6","inventoryItemName":"Coca-Cola 1.5L Bottles","amount":1.5,"unit":"Liters"}]'::jsonb, 200, 2, 100, 10, false, true, false, true, true),
+('prod-10', 'BZ-PK-402', 'Fanta Orange 1.5L Bottle', 'cat-4', 'Chilled 1.5 Liters Fanta Orange Bottle.', 280, NULL, 180, 'https://images.unsplash.com/photo-1624517452488-04869289c4ca?auto=format&fit=crop&w=800&q=80', '["Fanta Orange"]'::jsonb, '[]'::jsonb, 210, 2, 100, 10, false, true, false, false, true),
+('prod-11', 'BZ-PK-403', 'Mirinda Citrus Can (350ml)', 'cat-4', 'Chilled 350ml Mirinda Citrus Can.', 160, NULL, 95, 'https://images.unsplash.com/photo-1581006852262-e4307cf6283a?auto=format&fit=crop&w=800&q=80', '["Mirinda Can"]'::jsonb, '[{"inventoryItemId":"inv-8","inventoryItemName":"Mirinda Citrus Cans (350ml)","amount":1,"unit":"Cans"}]'::jsonb, 140, 2, 100, 10, false, true, false, false, true)
 ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name;
 
 -- 7. Waiters Seed Data

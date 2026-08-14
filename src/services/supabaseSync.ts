@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { useBuzzStore } from '../store/useBuzzStore';
 import {
   Order,
@@ -16,16 +16,47 @@ import {
   FBRConfig
 } from '../types';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+export const getSupabaseCredentials = () => {
+  const envUrl = import.meta.env.VITE_SUPABASE_URL || '';
+  const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+  const localUrl = typeof window !== 'undefined' ? localStorage.getItem('BUZZ_SUPABASE_URL') || '' : '';
+  const localKey = typeof window !== 'undefined' ? localStorage.getItem('BUZZ_SUPABASE_ANON_KEY') || '' : '';
 
-export const isSupabaseConfigured = () => {
-  return Boolean(supabaseUrl && supabaseAnonKey && supabaseUrl !== 'YOUR_SUPABASE_URL');
+  const url = envUrl && envUrl !== 'YOUR_SUPABASE_URL' ? envUrl : localUrl;
+  const key = envKey && envKey !== 'YOUR_SUPABASE_ANON_KEY' ? envKey : localKey;
+
+  return { url, key };
 };
 
-export const supabase = isSupabaseConfigured()
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : null;
+export const setSupabaseCredentials = (url: string, key: string) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('BUZZ_SUPABASE_URL', url.trim());
+    localStorage.setItem('BUZZ_SUPABASE_ANON_KEY', key.trim());
+    cachedClient = null; // reset cached client
+  }
+};
+
+let cachedClient: SupabaseClient | null = null;
+
+export const getSupabaseClient = (): SupabaseClient | null => {
+  if (cachedClient) return cachedClient;
+  const { url, key } = getSupabaseCredentials();
+  if (url && key) {
+    try {
+      cachedClient = createClient(url, key);
+      return cachedClient;
+    } catch (err) {
+      console.error('Failed to initialize Supabase client:', err);
+      return null;
+    }
+  }
+  return null;
+};
+
+export const isSupabaseConfigured = () => {
+  const { url, key } = getSupabaseCredentials();
+  return Boolean(url && key);
+};
 
 let isFetchingFromSupabase = false;
 
@@ -222,204 +253,250 @@ const formatFBRForSupabase = (f: FBRConfig) => ({
 // ========================================================
 
 export const saveOrderToSupabase = async (order: Order) => {
-  if (!supabase) return;
+  const client = getSupabaseClient();
+  if (!client) return;
   try {
     const payload = formatOrderForSupabase(order);
-    const { error } = await supabase.from('orders').upsert(payload, { onConflict: 'id' });
-    if (error) console.error('Supabase error saving order:', error);
-    else console.log('✅ Order saved to Supabase Cloud:', order.id);
-  } catch (err) {
+    const { error } = await client.from('orders').upsert(payload, { onConflict: 'id' });
+    if (error) {
+      console.error('Supabase error saving order:', error);
+      useBuzzStore.getState().showToast(`⚠️ Supabase Sync Error: ${error.message}`, 'error');
+    } else {
+      console.log('✅ Order saved to Supabase Cloud:', order.id);
+    }
+  } catch (err: any) {
     console.error('Error saving order to Supabase:', err);
   }
 };
 
 export const saveProductToSupabase = async (product: Product) => {
-  if (!supabase) return;
+  const client = getSupabaseClient();
+  if (!client) return;
   try {
     const payload = formatProductForSupabase(product);
-    const { error } = await supabase.from('products').upsert(payload, { onConflict: 'id' });
-    if (error) console.error('Supabase error saving product:', error);
-    else console.log('✅ Product saved to Supabase Cloud:', product.name);
-  } catch (err) {
+    const { error } = await client.from('products').upsert(payload, { onConflict: 'id' });
+    if (error) {
+      console.error('Supabase error saving product:', error);
+      useBuzzStore.getState().showToast(`⚠️ Supabase Sync Error: ${error.message}`, 'error');
+    } else {
+      console.log('✅ Product saved to Supabase Cloud:', product.name);
+    }
+  } catch (err: any) {
     console.error('Error saving product to Supabase:', err);
   }
 };
 
 export const deleteProductFromSupabase = async (id: string) => {
-  if (!supabase) return;
+  const client = getSupabaseClient();
+  if (!client) return;
   try {
-    const { error } = await supabase.from('products').delete().eq('id', id);
+    const { error } = await client.from('products').delete().eq('id', id);
     if (error) console.error('Supabase error deleting product:', error);
     else console.log('✅ Product deleted from Supabase Cloud:', id);
-  } catch (err) {
+  } catch (err: any) {
     console.error('Error deleting product from Supabase:', err);
   }
 };
 
 export const saveCategoryToSupabase = async (category: Category) => {
-  if (!supabase) return;
+  const client = getSupabaseClient();
+  if (!client) return;
   try {
     const payload = formatCategoryForSupabase(category);
-    const { error } = await supabase.from('categories').upsert(payload, { onConflict: 'id' });
-    if (error) console.error('Supabase error saving category:', error);
-  } catch (err) {
+    const { error } = await client.from('categories').upsert(payload, { onConflict: 'id' });
+    if (error) {
+      console.error('Supabase error saving category:', error);
+      useBuzzStore.getState().showToast(`⚠️ Supabase Sync Error: ${error.message}`, 'error');
+    }
+  } catch (err: any) {
     console.error('Error saving category to Supabase:', err);
   }
 };
 
 export const deleteCategoryFromSupabase = async (id: string) => {
-  if (!supabase) return;
+  const client = getSupabaseClient();
+  if (!client) return;
   try {
-    await supabase.from('categories').delete().eq('id', id);
-  } catch (err) {
+    await client.from('categories').delete().eq('id', id);
+  } catch (err: any) {
     console.error('Error deleting category from Supabase:', err);
   }
 };
 
 export const saveStaffToSupabase = async (staff: Staff) => {
-  if (!supabase) return;
+  const client = getSupabaseClient();
+  if (!client) return;
   try {
     const payload = formatStaffForSupabase(staff);
-    const { error } = await supabase.from('staff').upsert(payload, { onConflict: 'id' });
-    if (error) console.error('Supabase error saving staff:', error);
-    else console.log('✅ Staff saved to Supabase Cloud:', staff.name);
-  } catch (err) {
+    const { error } = await client.from('staff').upsert(payload, { onConflict: 'id' });
+    if (error) {
+      console.error('Supabase error saving staff:', error);
+      useBuzzStore.getState().showToast(`⚠️ Supabase Sync Error: ${error.message}`, 'error');
+    } else {
+      console.log('✅ Staff saved to Supabase Cloud:', staff.name);
+    }
+  } catch (err: any) {
     console.error('Error saving staff to Supabase:', err);
   }
 };
 
 export const deleteStaffFromSupabase = async (id: string) => {
-  if (!supabase) return;
+  const client = getSupabaseClient();
+  if (!client) return;
   try {
-    await supabase.from('staff').delete().eq('id', id);
-  } catch (err) {
+    await client.from('staff').delete().eq('id', id);
+  } catch (err: any) {
     console.error('Error deleting staff from Supabase:', err);
   }
 };
 
 export const saveWaiterToSupabase = async (waiter: Waiter) => {
-  if (!supabase) return;
+  const client = getSupabaseClient();
+  if (!client) return;
   try {
     const payload = formatWaiterForSupabase(waiter);
-    const { error } = await supabase.from('waiters').upsert(payload, { onConflict: 'id' });
+    const { error } = await client.from('waiters').upsert(payload, { onConflict: 'id' });
     if (error) console.error('Supabase error saving waiter:', error);
-  } catch (err) {
+  } catch (err: any) {
     console.error('Error saving waiter to Supabase:', err);
   }
 };
 
 export const saveRiderToSupabase = async (rider: Rider) => {
-  if (!supabase) return;
+  const client = getSupabaseClient();
+  if (!client) return;
   try {
     const payload = formatRiderForSupabase(rider);
-    const { error } = await supabase.from('riders').upsert(payload, { onConflict: 'id' });
+    const { error } = await client.from('riders').upsert(payload, { onConflict: 'id' });
     if (error) console.error('Supabase error saving rider:', error);
-  } catch (err) {
+  } catch (err: any) {
     console.error('Error saving rider to Supabase:', err);
   }
 };
 
 export const saveInventoryToSupabase = async (item: InventoryItem) => {
-  if (!supabase) return;
+  const client = getSupabaseClient();
+  if (!client) return;
   try {
     const payload = formatInventoryForSupabase(item);
-    const { error } = await supabase.from('inventory').upsert(payload, { onConflict: 'id' });
-    if (error) console.error('Supabase error saving inventory:', error);
-  } catch (err) {
+    const { error } = await client.from('inventory').upsert(payload, { onConflict: 'id' });
+    if (error) {
+      console.error('Supabase error saving inventory:', error);
+      useBuzzStore.getState().showToast(`⚠️ Supabase Sync Error: ${error.message}`, 'error');
+    }
+  } catch (err: any) {
     console.error('Error saving inventory to Supabase:', err);
   }
 };
 
 export const deleteInventoryFromSupabase = async (id: string) => {
-  if (!supabase) return;
+  const client = getSupabaseClient();
+  if (!client) return;
   try {
-    await supabase.from('inventory').delete().eq('id', id);
-  } catch (err) {
+    await client.from('inventory').delete().eq('id', id);
+  } catch (err: any) {
     console.error('Error deleting inventory item from Supabase:', err);
   }
 };
 
 export const saveCustomerToSupabase = async (customer: Customer) => {
-  if (!supabase) return;
+  const client = getSupabaseClient();
+  if (!client) return;
   try {
     const payload = formatCustomerForSupabase(customer);
-    await supabase.from('customers').upsert(payload, { onConflict: 'id' });
-  } catch (err) {
+    await client.from('customers').upsert(payload, { onConflict: 'id' });
+  } catch (err: any) {
     console.error('Error saving customer to Supabase:', err);
   }
 };
 
 export const saveExpenseToSupabase = async (expense: Expense) => {
-  if (!supabase) return;
+  const client = getSupabaseClient();
+  if (!client) return;
   try {
     const payload = formatExpenseForSupabase(expense);
-    const { error } = await supabase.from('expenses').upsert(payload, { onConflict: 'id' });
+    const { error } = await client.from('expenses').upsert(payload, { onConflict: 'id' });
     if (error) console.error('Supabase error saving expense:', error);
-  } catch (err) {
+  } catch (err: any) {
     console.error('Error saving expense to Supabase:', err);
   }
 };
 
 export const saveCouponToSupabase = async (coupon: Coupon) => {
-  if (!supabase) return;
+  const client = getSupabaseClient();
+  if (!client) return;
   try {
     const payload = formatCouponForSupabase(coupon);
-    const { error } = await supabase.from('coupons').upsert(payload, { onConflict: 'id' });
+    const { error } = await client.from('coupons').upsert(payload, { onConflict: 'id' });
     if (error) console.error('Supabase error saving coupon:', error);
-  } catch (err) {
+  } catch (err: any) {
     console.error('Error saving coupon to Supabase:', err);
   }
 };
 
 export const deleteCouponFromSupabase = async (id: string) => {
-  if (!supabase) return;
+  const client = getSupabaseClient();
+  if (!client) return;
   try {
-    await supabase.from('coupons').delete().eq('id', id);
-  } catch (err) {
+    await client.from('coupons').delete().eq('id', id);
+  } catch (err: any) {
     console.error('Error deleting coupon from Supabase:', err);
   }
 };
 
 export const saveDealToSupabase = async (deal: Deal) => {
-  if (!supabase) return;
+  const client = getSupabaseClient();
+  if (!client) return;
   try {
     const payload = formatDealForSupabase(deal);
-    const { error } = await supabase.from('deals').upsert(payload, { onConflict: 'id' });
+    const { error } = await client.from('deals').upsert(payload, { onConflict: 'id' });
     if (error) console.error('Supabase error saving deal:', error);
-  } catch (err) {
+  } catch (err: any) {
     console.error('Error saving deal to Supabase:', err);
   }
 };
 
 export const deleteDealFromSupabase = async (id: string) => {
-  if (!supabase) return;
+  const client = getSupabaseClient();
+  if (!client) return;
   try {
-    await supabase.from('deals').delete().eq('id', id);
-  } catch (err) {
+    await client.from('deals').delete().eq('id', id);
+  } catch (err: any) {
     console.error('Error deleting deal from Supabase:', err);
   }
 };
 
 export const saveSettingsToSupabase = async (settings: StoreSettings) => {
-  if (!supabase) return;
+  const client = getSupabaseClient();
+  if (!client) return;
   try {
     const payload = formatSettingsForSupabase(settings);
-    const { error } = await supabase.from('store_settings').upsert(payload, { onConflict: 'id' });
-    if (error) console.error('Supabase error saving settings:', error);
-    else console.log('✅ Store settings updated in Supabase Cloud');
-  } catch (err) {
+    const { error } = await client.from('store_settings').upsert(payload, { onConflict: 'id' });
+    if (error) {
+      console.error('Supabase error saving settings:', error);
+      useBuzzStore.getState().showToast(`⚠️ Supabase Settings Error: ${error.message}`, 'error');
+    } else {
+      console.log('✅ Store settings updated in Supabase Cloud');
+      useBuzzStore.getState().showToast('✅ Store Settings Saved to Supabase Cloud!', 'success');
+    }
+  } catch (err: any) {
     console.error('Error saving store settings to Supabase:', err);
   }
 };
 
 export const saveFBRToSupabase = async (config: FBRConfig) => {
-  if (!supabase) return;
+  const client = getSupabaseClient();
+  if (!client) return;
   try {
     const payload = formatFBRForSupabase(config);
-    const { error } = await supabase.from('fbr_config').upsert(payload, { onConflict: 'id' });
-    if (error) console.error('Supabase error saving FBR config:', error);
-    else console.log('✅ FBR Config updated in Supabase Cloud');
-  } catch (err) {
+    const { error } = await client.from('fbr_config').upsert(payload, { onConflict: 'id' });
+    if (error) {
+      console.error('Supabase error saving FBR config:', error);
+      useBuzzStore.getState().showToast(`⚠️ Supabase FBR Error: ${error.message}`, 'error');
+    } else {
+      console.log('✅ FBR Config updated in Supabase Cloud');
+    }
+  } catch (err: any) {
     console.error('Error saving FBR config to Supabase:', err);
   }
 };
@@ -429,8 +506,9 @@ export const saveFBRToSupabase = async (config: FBRConfig) => {
 // ========================================================
 
 export const initSupabaseSync = async () => {
-  if (!supabase || !isSupabaseConfigured()) {
-    console.log('ℹ️ Supabase credentials not configured in environment variables.');
+  const client = getSupabaseClient();
+  if (!client) {
+    console.log('ℹ️ Supabase credentials not configured.');
     return;
   }
 
@@ -453,18 +531,18 @@ export const initSupabaseSync = async () => {
         { data: settings },
         { data: fbr }
       ] = await Promise.all([
-        supabase.from('products').select('*'),
-        supabase.from('categories').select('*').order('display_order', { ascending: true }),
-        supabase.from('orders').select('*').order('created_at', { ascending: false }),
-        supabase.from('staff').select('*'),
-        supabase.from('waiters').select('*'),
-        supabase.from('riders').select('*'),
-        supabase.from('inventory').select('*'),
-        supabase.from('expenses').select('*'),
-        supabase.from('coupons').select('*'),
-        supabase.from('deals').select('*'),
-        supabase.from('store_settings').select('*').limit(1),
-        supabase.from('fbr_config').select('*').limit(1)
+        client.from('products').select('*'),
+        client.from('categories').select('*').order('display_order', { ascending: true }),
+        client.from('orders').select('*').order('created_at', { ascending: false }),
+        client.from('staff').select('*'),
+        client.from('waiters').select('*'),
+        client.from('riders').select('*'),
+        client.from('inventory').select('*'),
+        client.from('expenses').select('*'),
+        client.from('coupons').select('*'),
+        client.from('deals').select('*'),
+        client.from('store_settings').select('*').limit(1),
+        client.from('fbr_config').select('*').limit(1)
       ]);
 
       if (products && products.length > 0) {
@@ -694,7 +772,7 @@ export const initSupabaseSync = async () => {
   await fetchFullSupabaseState();
 
   // Listen to Supabase Realtime changes across all tables
-  supabase
+  client
     .channel('public:buzz_burger_realtime')
     .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
       if (isFetchingFromSupabase) return;
