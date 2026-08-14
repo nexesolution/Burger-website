@@ -60,7 +60,8 @@ import {
   deleteDealFromSupabase,
   saveCustomerToSupabase,
   saveSettingsToSupabase,
-  saveFBRToSupabase
+  saveFBRToSupabase,
+  getSupabaseClient
 } from '../services/supabaseSync';
 
 interface BuzzState {
@@ -506,10 +507,13 @@ export const useBuzzStore = create<BuzzState>()(
       updateOrderStatus: (id: string, status: OrderStatus, riderId?: string, waiterId?: string) => {
         const now = new Date().toISOString();
         let targetOrder: Order | undefined;
+        let activeRiderId = riderId;
 
         const updatedOrders = get().orders.map((ord: Order) => {
           if (ord.id === id) {
-            const riderObj = riderId ? get().riders.find((r: Rider) => r.id === riderId) : undefined;
+            const selectedRiderId = riderId || ord.riderId;
+            activeRiderId = selectedRiderId;
+            const riderObj = selectedRiderId ? get().riders.find((r: Rider) => r.id === selectedRiderId) : undefined;
             const waiterObj = waiterId ? get().waiters.find((w: Waiter) => w.id === waiterId) : undefined;
 
             if (waiterId && waiterId !== ord.waiterId) {
@@ -520,7 +524,7 @@ export const useBuzzStore = create<BuzzState>()(
               ...ord,
               status,
               updatedAt: now,
-              riderId: riderId || ord.riderId,
+              riderId: selectedRiderId || ord.riderId,
               riderName: riderObj ? riderObj.name : ord.riderName,
               waiterId: waiterId || ord.waiterId,
               waiterName: waiterObj ? waiterObj.name : ord.waiterName
@@ -531,9 +535,33 @@ export const useBuzzStore = create<BuzzState>()(
         });
 
         set({ orders: updatedOrders });
+
         if (targetOrder) {
           saveOrderToSupabase(targetOrder);
         }
+
+        // Recalculate assigned rider's active orders count & status
+        if (activeRiderId) {
+          const riderActiveCount = updatedOrders.filter(
+            (o) => o.riderId === activeRiderId && o.status !== 'Delivered' && o.status !== 'Cancelled'
+          ).length;
+
+          const updatedRiders = get().riders.map((r: Rider) => {
+            if (r.id === activeRiderId) {
+              const updatedRider: Rider = {
+                ...r,
+                currentOrders: riderActiveCount,
+                status: riderActiveCount > 0 ? 'Busy' : 'Available'
+              };
+              saveRiderToSupabase(updatedRider);
+              return updatedRider;
+            }
+            return r;
+          });
+
+          set({ riders: updatedRiders });
+        }
+
         get().showToast(`Order status updated to "${status}"`);
       },
 
@@ -675,22 +703,105 @@ export const useBuzzStore = create<BuzzState>()(
         get().showToast('Coupon removed', 'info');
       },
 
-      // Roster
+      // Roster (Auto-syncs staff with Riders and Waiters rosters)
       addStaff: (st: Omit<Staff, 'id'>) => {
         const newStaff: Staff = { ...st, id: `staff-${Date.now()}` };
         set({ staff: [...get().staff, newStaff] });
         saveStaffToSupabase(newStaff);
-        get().showToast('Staff member account created!');
+
+        // Auto sync to Riders roster if role is Rider
+        if (st.role === 'Rider') {
+          const existingRider = get().riders.find(
+            (r) => r.name.toLowerCase() === st.name.toLowerCase() || (st.phone && r.phone === st.phone)
+          );
+          if (!existingRider) {
+            const newRider: Rider = {
+              id: `r-${Date.now()}`,
+              name: st.name,
+              phone: st.phone || '+92 300 0000000',
+              vehicle: 'Honda CG125 Bike',
+              status: 'Available',
+              currentOrders: 0,
+              rating: 5.0
+            };
+            set({ riders: [...get().riders, newRider] });
+            saveRiderToSupabase(newRider);
+          }
+        }
+
+        // Auto sync to Waiters roster if role is Waiter
+        if (st.role === 'Waiter') {
+          const existingWaiter = get().waiters.find(
+            (w) => w.name.toLowerCase() === st.name.toLowerCase() || (st.phone && w.phone === st.phone)
+          );
+          if (!existingWaiter) {
+            const newWaiter: Waiter = {
+              id: `w-${Date.now()}`,
+              name: st.name,
+              phone: st.phone || '+92 300 0000000',
+              status: 'Available',
+              assignedTables: [],
+              totalSales: 0
+            };
+            set({ waiters: [...get().waiters, newWaiter] });
+            saveWaiterToSupabase(newWaiter);
+          }
+        }
+
+        get().showToast('Staff member account created & synced to Roster!');
       },
+
       updateStaff: (id: string, fields: Partial<Staff>) => {
         set({ staff: get().staff.map((s: Staff) => (s.id === id ? { ...s, ...fields } : s)) });
         const updated = get().staff.find((s: Staff) => s.id === id);
-        if (updated) saveStaffToSupabase(updated);
-        get().showToast('Staff profile updated!');
+        if (updated) {
+          saveStaffToSupabase(updated);
+
+          // If role is Rider, sync rider roster entry & push to Supabase
+          if (updated.role === 'Rider') {
+            const matchedRider = get().riders.find(
+              (r) => r.name.toLowerCase() === updated.name.toLowerCase() || (updated.phone && r.phone === updated.phone)
+            );
+            if (matchedRider) {
+              const updatedRider: Rider = {
+                ...matchedRider,
+                name: updated.name,
+                phone: updated.phone || matchedRider.phone
+              };
+              set({ riders: get().riders.map((r) => (r.id === matchedRider.id ? updatedRider : r)) });
+              saveRiderToSupabase(updatedRider);
+            } else {
+              const newRider: Rider = {
+                id: `r-${Date.now()}`,
+                name: updated.name,
+                phone: updated.phone || '+92 300 0000000',
+                vehicle: 'Honda CG125 Bike',
+                status: 'Available',
+                currentOrders: 0,
+                rating: 5.0
+              };
+              set({ riders: [...get().riders, newRider] });
+              saveRiderToSupabase(newRider);
+            }
+          }
+        }
+        get().showToast('Staff profile updated & synced to Roster!');
       },
+
       deleteStaff: (id: string) => {
+        const staffMember = get().staff.find((s) => s.id === id);
         set({ staff: get().staff.filter((s: Staff) => s.id !== id) });
         deleteStaffFromSupabase(id);
+
+        if (staffMember && staffMember.role === 'Rider') {
+          const matchedRider = get().riders.find((r) => r.name.toLowerCase() === staffMember.name.toLowerCase());
+          if (matchedRider) {
+            set({ riders: get().riders.filter((r) => r.id !== matchedRider.id) });
+            const client = getSupabaseClient();
+            if (client) client.from('riders').delete().eq('id', matchedRider.id);
+          }
+        }
+
         get().showToast('Staff account deleted', 'info');
       },
 

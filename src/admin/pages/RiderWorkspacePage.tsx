@@ -22,14 +22,25 @@ export const RiderWorkspacePage: React.FC = () => {
 
   const [isOnDuty, setIsOnDuty] = useState(true);
 
-  // Filter delivery orders assigned or available for delivery
-  const deliveryOrders = orders.filter(
-    (o) => o.orderType === 'Delivery' && (o.status === 'Preparing' || o.status === 'Out for Delivery')
-  );
+  const loggedInRiderName = adminUser?.name?.toLowerCase();
 
-  const completedToday = orders.filter(
-    (o) => o.orderType === 'Delivery' && o.status === 'Delivered'
-  );
+  // Filter delivery orders assigned to this rider (or all active delivery orders if unassigned)
+  const deliveryOrders = orders.filter((o) => {
+    if (o.orderType !== 'Delivery') return false;
+    if (o.status === 'Delivered' || o.status === 'Cancelled') return false;
+    if (loggedInRiderName && o.riderName) {
+      return o.riderName.toLowerCase().includes(loggedInRiderName) || loggedInRiderName.includes(o.riderName.toLowerCase());
+    }
+    return true;
+  });
+
+  const completedToday = orders.filter((o) => {
+    if (o.orderType !== 'Delivery' || o.status !== 'Delivered') return false;
+    if (loggedInRiderName && o.riderName) {
+      return o.riderName.toLowerCase().includes(loggedInRiderName) || loggedInRiderName.includes(o.riderName.toLowerCase());
+    }
+    return true;
+  });
 
   const totalCashCollected = completedToday.reduce((sum, o) => sum + o.total, 0);
 
