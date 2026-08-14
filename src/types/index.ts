@@ -130,10 +130,15 @@ export interface Rider {
   id: string;
   name: string;
   phone: string;
+  email?: string;
   vehicle: string;
+  licensePlate?: string;
+  cnic?: string;
   status: 'Available' | 'Busy' | 'Offline';
   currentOrders: number;
   rating: number;
+  totalCashCollected?: number;
+  totalDeliveries?: number;
 }
 
 export interface InventoryItem {

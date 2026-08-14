@@ -149,10 +149,15 @@ const formatRiderForSupabase = (r: Rider) => ({
   id: r.id,
   name: r.name,
   phone: r.phone,
+  email: r.email || null,
   vehicle: r.vehicle,
+  license_plate: r.licensePlate || null,
+  cnic: r.cnic || null,
   status: r.status,
   current_orders: r.currentOrders || 0,
-  rating: r.rating || 5.0
+  rating: r.rating || 5.0,
+  total_cash_collected: r.totalCashCollected || 0,
+  total_deliveries: r.totalDeliveries || 0
 });
 
 const formatInventoryForSupabase = (i: InventoryItem) => ({
@@ -648,10 +653,15 @@ export const initSupabaseSync = async () => {
           id: r.id,
           name: r.name,
           phone: r.phone,
+          email: r.email || undefined,
           vehicle: r.vehicle,
+          licensePlate: r.license_plate || undefined,
+          cnic: r.cnic || undefined,
           status: r.status,
           currentOrders: r.current_orders || 0,
-          rating: Number(r.rating || 5.0)
+          rating: Number(r.rating || 5.0),
+          totalCashCollected: Number(r.total_cash_collected || 0),
+          totalDeliveries: Number(r.total_deliveries || 0)
         }));
         useBuzzStore.setState({ riders: mappedRiders });
       }
