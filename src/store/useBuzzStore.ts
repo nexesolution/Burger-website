@@ -45,6 +45,10 @@ import {
   saveOrderToSupabase,
   saveProductToSupabase,
   deleteProductFromSupabase,
+  saveCategoryToSupabase,
+  deleteCategoryFromSupabase,
+  saveStaffToSupabase,
+  deleteStaffFromSupabase,
   saveWaiterToSupabase,
   saveRiderToSupabase,
   saveInventoryToSupabase,
@@ -54,7 +58,9 @@ import {
   deleteCouponFromSupabase,
   saveDealToSupabase,
   deleteDealFromSupabase,
-  saveSettingsToSupabase
+  saveCustomerToSupabase,
+  saveSettingsToSupabase,
+  saveFBRToSupabase
 } from '../services/supabaseSync';
 
 interface BuzzState {
@@ -376,6 +382,7 @@ export const useBuzzStore = create<BuzzState>()(
           id: `cat-${Date.now()}`
         };
         set({ categories: [...get().categories, newCat] });
+        saveCategoryToSupabase(newCat);
         get().showToast(`Category "${cat.name}" added!`);
       },
 
@@ -383,11 +390,14 @@ export const useBuzzStore = create<BuzzState>()(
         set({
           categories: get().categories.map((c: Category) => (c.id === id ? { ...c, ...updatedFields } : c))
         });
+        const updated = get().categories.find((c: Category) => c.id === id);
+        if (updated) saveCategoryToSupabase(updated);
         get().showToast('Category updated!');
       },
 
       deleteCategory: (id: string) => {
         set({ categories: get().categories.filter((c: Category) => c.id !== id) });
+        deleteCategoryFromSupabase(id);
         get().showToast('Category removed', 'info');
       },
 
@@ -535,6 +545,7 @@ export const useBuzzStore = create<BuzzState>()(
           lastUpdated: new Date().toISOString().split('T')[0]
         };
         set({ inventory: [...get().inventory, newItem] });
+        saveInventoryToSupabase(newItem);
         get().showToast(`Inventory item "${item.name}" added!`);
       },
 
@@ -550,6 +561,8 @@ export const useBuzzStore = create<BuzzState>()(
               : inv
           )
         });
+        const updated = get().inventory.find((i: InventoryItem) => i.id === id);
+        if (updated) saveInventoryToSupabase(updated);
         get().showToast('Inventory updated!');
       },
 
@@ -575,6 +588,8 @@ export const useBuzzStore = create<BuzzState>()(
             return inv;
           })
         });
+        const updated = get().inventory.find((i: InventoryItem) => i.id === id);
+        if (updated) saveInventoryToSupabase(updated);
         get().showToast('Stock quantity adjusted!');
       },
 
@@ -585,6 +600,7 @@ export const useBuzzStore = create<BuzzState>()(
           id: `exp-${Date.now()}`
         };
         set({ expenses: [newExp, ...get().expenses] });
+        saveExpenseToSupabase(newExp);
         get().showToast('Expense recorded!');
       },
 
@@ -600,6 +616,7 @@ export const useBuzzStore = create<BuzzState>()(
           id: `deal-${Date.now()}`
         };
         set({ deals: [...get().deals, newDeal] });
+        saveDealToSupabase(newDeal);
         get().showToast(`Deal "${deal.title}" created!`);
       },
 
@@ -607,11 +624,14 @@ export const useBuzzStore = create<BuzzState>()(
         set({
           deals: get().deals.map((d: Deal) => (d.id === id ? { ...d, ...fields } : d))
         });
+        const updated = get().deals.find((d: Deal) => d.id === id);
+        if (updated) saveDealToSupabase(updated);
         get().showToast('Deal updated!');
       },
 
       deleteDeal: (id: string) => {
         set({ deals: get().deals.filter((d: Deal) => d.id !== id) });
+        deleteDealFromSupabase(id);
         get().showToast('Deal removed', 'info');
       },
 
@@ -657,15 +677,20 @@ export const useBuzzStore = create<BuzzState>()(
 
       // Roster
       addStaff: (st: Omit<Staff, 'id'>) => {
-        set({ staff: [...get().staff, { ...st, id: `staff-${Date.now()}` }] });
+        const newStaff: Staff = { ...st, id: `staff-${Date.now()}` };
+        set({ staff: [...get().staff, newStaff] });
+        saveStaffToSupabase(newStaff);
         get().showToast('Staff member account created!');
       },
       updateStaff: (id: string, fields: Partial<Staff>) => {
         set({ staff: get().staff.map((s: Staff) => (s.id === id ? { ...s, ...fields } : s)) });
+        const updated = get().staff.find((s: Staff) => s.id === id);
+        if (updated) saveStaffToSupabase(updated);
         get().showToast('Staff profile updated!');
       },
       deleteStaff: (id: string) => {
         set({ staff: get().staff.filter((s: Staff) => s.id !== id) });
+        deleteStaffFromSupabase(id);
         get().showToast('Staff account deleted', 'info');
       },
 
@@ -717,7 +742,9 @@ export const useBuzzStore = create<BuzzState>()(
       },
 
       updateFBRConfig: (config: Partial<FBRConfig>) => {
-        set({ fbrConfig: { ...get().fbrConfig, ...config } });
+        const updatedFBR = { ...get().fbrConfig, ...config };
+        set({ fbrConfig: updatedFBR });
+        saveFBRToSupabase(updatedFBR);
         get().showToast('FBR integration config saved!');
       },
 
