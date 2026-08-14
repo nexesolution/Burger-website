@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
-import { Plus, Bike, Star, DollarSign, PackageCheck, Phone, Mail, Shield, Trash2, Edit, X, CheckCircle2 } from 'lucide-react';
+import { Plus, Bike, Star, DollarSign, PackageCheck, Phone, Mail, Shield, Trash2, Edit, X, CheckCircle2, Key, User } from 'lucide-react';
 import { useBuzzStore } from '../../store/useBuzzStore';
-import { Rider } from '../../types';
+import { Rider, Staff } from '../../types';
 
 export const RidersPage: React.FC = () => {
   const riders = useBuzzStore((state) => state.riders);
+  const staff = useBuzzStore((state) => state.staff);
   const orders = useBuzzStore((state) => state.orders);
   const addRider = useBuzzStore((state) => state.addRider);
   const updateRider = useBuzzStore((state) => state.updateRider);
+  const addStaff = useBuzzStore((state) => state.addStaff);
+  const updateStaff = useBuzzStore((state) => state.updateStaff);
   const showToast = useBuzzStore((state) => state.showToast);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -16,6 +19,8 @@ export const RidersPage: React.FC = () => {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [vehicle, setVehicle] = useState('Honda CG125 Bike');
   const [licensePlate, setLicensePlate] = useState('');
   const [cnic, setCnic] = useState('');
@@ -26,6 +31,8 @@ export const RidersPage: React.FC = () => {
     setName('');
     setPhone('');
     setEmail('');
+    setUsername('');
+    setPassword('rider123');
     setVehicle('Honda CG125 Bike');
     setLicensePlate('');
     setCnic('');
@@ -38,6 +45,13 @@ export const RidersPage: React.FC = () => {
     setName(r.name);
     setPhone(r.phone);
     setEmail(r.email || '');
+
+    const matchedStaff = staff.find(
+      (s) => (s.email && r.email && s.email.toLowerCase() === r.email.toLowerCase()) || s.name.toLowerCase() === r.name.toLowerCase()
+    );
+    setUsername(matchedStaff ? matchedStaff.username || '' : r.name.toLowerCase().replace(/\s+/g, ''));
+    setPassword(matchedStaff ? matchedStaff.password || '' : 'rider123');
+
     setVehicle(r.vehicle);
     setLicensePlate(r.licensePlate || '');
     setCnic(r.cnic || '');
@@ -47,23 +61,54 @@ export const RidersPage: React.FC = () => {
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
+    const finalEmail = email.trim() || `${name.toLowerCase().replace(/\s+/g, '')}@buzzburgers.pk`;
+    const finalUsername = username.trim() || name.toLowerCase().replace(/\s+/g, '');
+    const finalPassword = password.trim() || 'rider123';
 
     if (editingRiderId) {
       updateRider(editingRiderId, {
         name,
         phone,
-        email,
+        email: finalEmail,
         vehicle,
         licensePlate,
         cnic,
         status
       });
-      showToast(`Rider profile for ${name} updated!`);
+
+      // Update matching staff credentials if exists
+      const matchedStaff = staff.find(
+        (s) => (s.email && email && s.email.toLowerCase() === email.toLowerCase()) || s.name.toLowerCase() === name.toLowerCase()
+      );
+      if (matchedStaff) {
+        updateStaff(matchedStaff.id, {
+          name,
+          email: finalEmail,
+          username: finalUsername,
+          password: finalPassword,
+          phone,
+          role: 'Rider',
+          status: status === 'Offline' ? 'Inactive' : 'Active'
+        });
+      } else {
+        addStaff({
+          name,
+          email: finalEmail,
+          username: finalUsername,
+          password: finalPassword,
+          phone,
+          role: 'Rider',
+          status: 'Active',
+          joiningDate: new Date().toISOString().split('T')[0]
+        });
+      }
+
+      showToast(`Rider profile & credentials for ${name} updated!`);
     } else {
       addRider({
         name,
         phone,
-        email: email || `${name.toLowerCase().replace(/\s+/g, '')}@buzzburgers.pk`,
+        email: finalEmail,
         vehicle,
         licensePlate,
         cnic,
@@ -73,6 +118,23 @@ export const RidersPage: React.FC = () => {
         totalCashCollected: 0,
         totalDeliveries: 0
       });
+
+      // Ensure staff login account created with explicit username & password
+      const existingStaff = staff.find((s) => s.email.toLowerCase() === finalEmail.toLowerCase() || s.username === finalUsername);
+      if (!existingStaff) {
+        addStaff({
+          name,
+          email: finalEmail,
+          username: finalUsername,
+          password: finalPassword,
+          phone,
+          role: 'Rider',
+          status: 'Active',
+          joiningDate: new Date().toISOString().split('T')[0]
+        });
+      }
+
+      showToast(`Rider ${name} registered! Username: ${finalUsername}`);
     }
 
     setIsModalOpen(false);
@@ -106,10 +168,10 @@ export const RidersPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-black font-display tracking-tight">
-            DELIVERY <span className="text-buzz-yellow">RIDERS ROSTER & CASH LEDGER</span>
+            DELIVERY <span className="text-buzz-yellow">RIDERS & CREDENTIALS</span>
           </h1>
           <p className="text-xs text-zinc-400">
-            Track rider fleet status, active delivery tasks, and real-time cash collected (COD).
+            Register rider profile, vehicle details, cash ledger, & assign app login username/password.
           </p>
         </div>
 
@@ -117,7 +179,7 @@ export const RidersPage: React.FC = () => {
           onClick={openCreateModal}
           className="px-4 py-2.5 rounded-xl bg-buzz-yellow text-buzz-black font-extrabold text-xs shadow-buzz-glow flex items-center gap-2 hover:bg-yellow-400 transition-colors"
         >
-          <Plus className="w-4 h-4" /> REGISTER NEW RIDER PROFILE
+          <Plus className="w-4 h-4" /> REGISTER NEW RIDER & CREDENTIALS
         </button>
       </div>
 
@@ -162,6 +224,9 @@ export const RidersPage: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {riders.map((r) => {
           const metrics = getRiderMetrics(r);
+          const matchedStaff = staff.find(
+            (s) => (s.email && r.email && s.email.toLowerCase() === r.email.toLowerCase()) || s.name.toLowerCase() === r.name.toLowerCase()
+          );
 
           return (
             <div
@@ -233,10 +298,10 @@ export const RidersPage: React.FC = () => {
                       <span>{r.email}</span>
                     </p>
                   )}
-                  {r.cnic && (
-                    <p className="flex items-center gap-2 font-mono text-[10px]">
-                      <Shield className="w-3.5 h-3.5 text-buzz-yellow" />
-                      <span>CNIC: {r.cnic}</span>
+                  {matchedStaff && (
+                    <p className="flex items-center gap-2 font-mono text-[11px] text-emerald-400 font-bold">
+                      <User className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Login: {matchedStaff.username}</span>
                     </p>
                   )}
                 </div>
@@ -252,7 +317,7 @@ export const RidersPage: React.FC = () => {
                   onClick={() => openEditModal(r)}
                   className="px-3.5 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white font-bold text-xs border border-zinc-800 flex items-center gap-1.5 transition-colors"
                 >
-                  <Edit className="w-3.5 h-3.5 text-buzz-yellow" /> Edit Profile
+                  <Edit className="w-3.5 h-3.5 text-buzz-yellow" /> Edit Credentials & Profile
                 </button>
               </div>
             </div>
@@ -268,7 +333,7 @@ export const RidersPage: React.FC = () => {
               <div className="flex items-center gap-2">
                 <Bike className="w-5 h-5 text-buzz-yellow" />
                 <h3 className="text-lg font-black font-display text-white">
-                  {editingRiderId ? 'EDIT RIDER PROFILE' : 'REGISTER NEW DELIVERY RIDER'}
+                  {editingRiderId ? 'EDIT RIDER & LOGIN CREDENTIALS' : 'REGISTER RIDER & LOGIN CREDENTIALS'}
                 </h3>
               </div>
               <button
@@ -280,6 +345,38 @@ export const RidersPage: React.FC = () => {
             </div>
 
             <form onSubmit={handleSave} className="space-y-4 text-xs">
+              {/* App Login Credentials Card */}
+              <div className="p-4 rounded-2xl bg-zinc-950 border border-zinc-800 space-y-3">
+                <div className="flex items-center gap-2 text-buzz-yellow font-bold text-xs uppercase tracking-wider">
+                  <Key className="w-4 h-4" /> APP LOGIN CREDENTIALS
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-zinc-400 font-semibold">Login Username *</label>
+                    <input
+                      type="text"
+                      required
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      placeholder="rider_shahid"
+                      className="w-full bg-zinc-900 border border-zinc-800 text-white rounded-xl p-2.5 focus:border-buzz-yellow focus:outline-none font-mono"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-zinc-400 font-semibold">Login Password *</label>
+                    <input
+                      type="text"
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="rider123"
+                      className="w-full bg-zinc-900 border border-zinc-800 text-white rounded-xl p-2.5 focus:border-buzz-yellow focus:outline-none font-mono"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Personal Info */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-zinc-400 font-semibold">Rider Full Name *</label>
@@ -308,7 +405,7 @@ export const RidersPage: React.FC = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-zinc-400 font-semibold">Email Address (App Login)</label>
+                  <label className="text-zinc-400 font-semibold">Email Address</label>
                   <input
                     type="email"
                     value={email}
@@ -385,7 +482,7 @@ export const RidersPage: React.FC = () => {
                   type="submit"
                   className="flex-1 py-3 rounded-xl bg-buzz-yellow text-buzz-black font-black text-xs shadow-buzz-glow hover:bg-yellow-400"
                 >
-                  {editingRiderId ? 'UPDATE RIDER' : 'SAVE RIDER PROFILE'}
+                  {editingRiderId ? 'SAVE CREDENTIALS & RIDER' : 'CREATE RIDER & CREDENTIALS'}
                 </button>
               </div>
             </form>
